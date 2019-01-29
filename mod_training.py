@@ -8,6 +8,7 @@ import cartopy.feature as cfeature
 import cartopy.io.shapereader as shapereader
 import seaborn as sns
 import shapely.geometry as sgeom
+from shapely.geometry import Point
 from datetime import datetime,timedelta
 from matplotlib.colors import ListedColormap
 from matplotlib.lines import Line2D as Line
@@ -17,6 +18,35 @@ import sys
 if not sys.warnoptions:
     import warnings
     warnings.simplefilter("ignore")
+
+
+
+def update_main_dict(main_dict):
+    "Update main_dict for an ensemble"
+
+    tmp_dict=[]
+    idata=0
+    for sub_dict in main_dict:
+
+        types=[]
+        for typ in sub_dict['types']:
+
+            if typ!='ensmemb':
+                types.append(typ)
+            else:
+                for imem in range(1,sub_dict['nmem']):
+                    imem=("{:03d}".format(imem))
+                    types.append("p"+imem)
+        
+        tmp_dict.append(sub_dict)
+        tmp_dict[idata].update({
+            'types' : types,
+            })
+
+        idata+=1
+
+    return tmp_dict
+
 
 
 def create_vars(pvars,main_dict,plot_dict):
@@ -43,9 +73,13 @@ def create_vars(pvars,main_dict,plot_dict):
                     md_exps.append(exp)
 
                     if typ=="ensstd":
-                        typ_ens.append(True)
+                        typ_ens.append("ensstd")
+                    elif typ=="ensmean":
+                        typ_ens.append("ensmean")
+                    elif typ=="ctrl" or typ=="p000":
+                        typ_ens.append("ctrl")
                     else:
-                        typ_ens.append(False)
+                        typ_ens.append("member")
 
     if (len(pvars) < md_sum) and len(pvars)>1:
         print("\nNOTE! There's mismatch between variables to be plotted \
@@ -235,7 +269,7 @@ def structure_for_plotting(dd,plot_vars):
             # Loop over levels if requested
             if plot_var['levs']:
                 for ilev in plot_var['nlevs']:
-                    data_struct.append(dd[idata][ivar].isel(lev=ilev))
+                    data_struct.append(dd[idata][ivar].isel(plev=ilev))
 
             else:
                 data_struct.append(dd[idata][ivar])
@@ -244,6 +278,109 @@ def structure_for_plotting(dd,plot_vars):
             idata+=1
 
     return data_struct
+
+
+
+def configure_plot(plot_dict,plot_vars):
+    "Store default plot settings and change them if requested"
+
+    loc_dict={}
+    loc_dict.update({'fig_proj':ccrs.PlateCarree()})
+
+    # False and None values are the same, need (probably not)
+    # to define False sets here to be included
+    loc_dict.update({'fig_title' : False})
+    loc_dict.update({'fig_ylabel': False})
+    loc_dict.update({'fig_xlabel': False})
+
+    loc_dict.update({'fig_ens_predef': False})
+    loc_dict.update({'fig_ens_show'  : False})
+    loc_dict.update({'fig_ens_col'   : []})
+    loc_dict.update({'fig_ens_buff'   : []})
+    loc_dict.update({'fig_ens_alpha'  : []})
+
+    loc_dict.update({'fig_obs_track': False})
+    loc_dict.update({'fig_obs_buff':[]})
+    loc_dict.update({'fig_obs_match_time': False})
+
+    loc_dict.update({'fig_features': False})
+
+    # Default figure settings for 2dmap
+    if plot_dict['plot_type']=='2dmap':
+        loc_dict.update({
+                'fig_size'    : (14,8),
+                'fig_cf_levs' : 40,
+                })
+
+    # Default figure settings for mvar
+    if plot_dict['plot_type']=='mvar':
+        loc_dict.update({
+                'fig_size'    : (14,8),
+                'fig_nrow'    : 1,
+                'fig_ncol'    : 1,
+                'fig_cf_levs' : 40,
+                'fig_c_levs'  : 30,
+                'fig_c_col'   : 'k',
+                })
+
+    # Calculate number of columns based on plot_vars length
+    if plot_dict['plot_type']!='mvar':
+        loc_dict.update({
+                'fig_nrow' : len(plot_vars),
+                'fig_ncol' : 1,
+                })
+
+    # Cycle through all possible fields and add them to dict
+    # if not defined
+    for item in [    'fcsteps',\
+                     'fig_name',\
+                     'lonlat',\
+                     'minmax',\
+                     'plot_type',\
+                         
+                     'fig_size',\
+                     'fig_ncol',\
+                     'fig_nrow',\
+                         
+                     'fig_cf_levs',\
+                     'fig_c_levs',\
+                     'fig_c_col',\
+                         
+                     'fig_ens_predef',\
+                     'fig_ens_show',\
+                     'fig_ens_col',\
+                     'fig_ens_buff',\
+                     'fig_ens_alpha',\
+                     'fig_ctrl_col',\
+                     'fig_ensm_col',\
+                         
+                     'fig_legend',\
+                         
+                     'fig_title',\
+                     'fig_ylabel',\
+                     'fig_xlabel',\
+                         
+                     'fig_proj',\
+                         
+                     'fig_obs_track',\
+                     'fig_obs_file',\
+                     'fig_obs_col',\
+                     'fig_obs_buff',\
+                     'fig_obs_match_time',\
+                         
+                     'fig_features']:
+
+
+        # Replace defaults if a value is given in plot_dict
+        try:
+            plot_dict[item]
+        except KeyError:
+            loc_dict.update({item:[]})
+        else:
+            if plot_dict[item]:
+                loc_dict.update({item:plot_dict[item]})
+
+    return loc_dict
 
 
 
@@ -329,7 +466,6 @@ def tc_plot(ax,data_path,edgecolor,buff,match_date_to=[]):
         print("                              ",dates[ifc_last],"\n")
 
         print(ifc_init)
-        #ifc_init=0
 
         lats=lats[ifc_diff:ifc_last]
         lons=lons[ifc_diff:ifc_last]
@@ -346,7 +482,8 @@ def tc_plot(ax,data_path,edgecolor,buff,match_date_to=[]):
 
     # Plot the track
     ax.add_geometries([track], ccrs.PlateCarree(),
-                      facecolor='none',edgecolor=edgecolor,linewidth=2)
+                      facecolor='none',edgecolor=edgecolor,linewidth=4)
+
 
     # Plot a buffer around the track
     if buff:
@@ -379,7 +516,7 @@ def find_pressure_min(data):
 
 
 
-def create_tc_track(ax,data,fcsteps,icol):
+def create_tc_track(ax,data,plot_var,fcsteps,icol,buff=[],ens_show=False,buff_alpha=[]):
     "Find and construct the TC track from the data"
 
     lons=[]
@@ -399,14 +536,46 @@ def create_tc_track(ax,data,fcsteps,icol):
         else:
             pmin.append(float('nan'))
 
-    #print(lons,lats)
+
+    # Calculate distance between points
+    #trackpoint_prev=[]
+    #tmp_lons=[]
+    #tmp_lats=[]
+    #ilon=
+    #for trackpoint in zip(lons,lats):
+    #   if trackpoint_prev:
+    #        distance = trackpoint_prev.distance(Point(trackpoint))
+    #        
+    #        if distance < 4.:
+    #            tmp_lons.append([])
+    #            tmp_lats.append([])
+    #
+    #    trackpoint_prev=Point(trackpoint)
+    #
+    #    ilon+=1
 
     # Turn the lons and lats into a shapely LineString
     track = sgeom.LineString(zip(lons, lats))
 
     # Plot the track
-    ax.add_geometries([track], ccrs.PlateCarree(),
-                      facecolor='none',edgecolor=icol,linewidth=2.0,alpha=0.9)
+    if buff and plot_var['ens']=="member":
+        alpha=0.3
+    else:
+        alpha=0.9
+
+    if plot_var['ens']!="member" or (plot_var['ens']=="member" and ens_show):
+        ax.add_geometries([track], ccrs.PlateCarree(),
+                          facecolor='none',edgecolor=icol,linewidth=3.0,alpha=alpha)
+
+    # Plot a buffer around the track
+    if buff and plot_var['ens']=="member":
+        track_buffer=track.buffer(buff)
+
+        if not buff_alpha:
+            buff_alpha=0.15
+
+        ax.add_geometries([track_buffer], ccrs.PlateCarree(),
+                          facecolor=icol, alpha=buff_alpha)
 
     return pmin
 
@@ -425,6 +594,8 @@ def col_maps(var,clevs):
         cmap=[sns.color_palette("PuBu",clevs),sns.cubehelix_palette(start=3.0, light=1, as_cmap=True)]
     elif var=='U' or var=='V':
         cmap=[sns.color_palette("OrRd",clevs),sns.cubehelix_palette(start=2.7, light=1, as_cmap=True)]
+    elif var=='W10M':
+        cmap=[sns.color_palette("cool",clevs),sns.cubehelix_palette(start=2.7, light=1, as_cmap=True)]
     elif var=='TP':
         cmap=[sns.color_palette("viridis",clevs-10),sns.cubehelix_palette(start=2.7, light=1, as_cmap=True)]
     else:
@@ -435,18 +606,18 @@ def col_maps(var,clevs):
 
 
 
-def col_maps_data(data_struct,fig_conf,plot_vars=[]):
+def col_maps_data(data_struct,plot_dict,plot_vars=[]):
     "Set colormaps for each variable [physical units, standard deviation]"
 
     cmaps=[]
 
-    clevs=fig_conf['fig_cf_levs']
+    clevs=plot_dict['fig_cf_levs']
 
     idata=0
     for data in data_struct:
         icol=0
         if plot_vars:
-            if plot_vars[idata]['ens']:
+            if plot_vars[idata]['ens']=='ensstd':
                 icol=1
 
         cmap=col_maps(get_varname(data),clevs)[icol]
@@ -459,12 +630,42 @@ def col_maps_data(data_struct,fig_conf,plot_vars=[]):
 
 
 
-def col_map_data(data,clevs):
-    "Set colormaps for each variable [physical units, standard deviation]"
+def col_list_data(data_struct,plot_dict,plot_vars=[]):
+    "Set colours for tc track plot"
 
-    cmap=col_maps(get_varname(data),clevs)
+    cols=sns.color_palette(n_colors=len(plot_vars))
 
-    return cmap
+    try:
+        plot_dict['fig_ens_col']
+    except KeyError:
+        pass
+    else:
+        if plot_dict['fig_ens_col']:
+            cols=[]
+            for ivar in plot_vars:
+                # Ensemble member color
+                if ivar['ens']=='member':
+                    cols.append(plot_dict['fig_ens_col'])
+
+                # Control member color
+                elif ivar['ens']=='ctrl':
+                    try:
+                        plot_dict['fig_ctrl_col']
+                    except KeyError:
+                        cols.append('k')
+                    else:
+                        cols.append(plot_dict['fig_ctrl_col'])
+
+                # Ensemble member color
+                elif ivar['ens']=='ensmean':
+                    try:
+                        plot_dict['fig_ensm_col']
+                    except KeyError:
+                        cols.append('g')
+                    else:
+                        cols.append(plot_dict['fig_ensm_col'])
+            
+    return cols
 
 
 
@@ -557,7 +758,25 @@ def plot_borders(ax):
 
 
 
-def plot_legend(cols,legend_texts,bbox_loc=[],ncols=1):
+def plot_legend(cols,legend_texts,plot_vars=[],plot_dict=[]):
+    "Plot legend box"
+
+    # Default number of legend columns
+    ncols=1
+
+    if not legend_texts:
+        legend_texts=[]
+        for ivar in plot_vars:
+            if plot_dict['fig_ens_col']==[] or ivar['ens']!='member':
+                legend_texts.append(ivar['legend'])
+
+        bbox_loc=(0.6,1.2,0,0)
+        if len(plot_vars) > 6:
+            ncols=2
+            bbox_loc=(0.7,1.2,0,0)
+
+    else:        
+        bbox_loc=[]
 
     # Create a legend
     legend_artists = [Line([0], [0], color=color, linewidth=2)
@@ -596,193 +815,6 @@ def plot_features(ax,coast=True,grid=True,country=False,lam=False,lonlat=[]):
 
 
 
-def configure_plot(plot_dict,plot_vars):
-    "Store default plot settings and change them if requested"
-
-    loc_dict={}
-    loc_dict.update({'fig_proj':ccrs.PlateCarree()})
-    loc_dict.update({'fig_title' : False})
-    loc_dict.update({'fig_ylabel': False})
-    loc_dict.update({'fig_xlabel': False})
-    loc_dict.update({'fig_obs_track': False})
-    loc_dict.update({'fig_obs_buff':[]})
-    loc_dict.update({'fig_features': False})
-
-    # Default figure settings for 2dmap
-    if plot_dict['plot_type']=='2dmap':
-        loc_dict.update({
-                'fig_size'    : (14,8),
-                'fig_cf_levs' : 40,
-                })
-
-    # Default figure settings for mvar
-    if plot_dict['plot_type']=='mvar':
-        loc_dict.update({
-                'fig_size'    : (14,8),
-                'fig_nrow'    : 1,
-                'fig_ncol'    : 1,
-                'fig_cf_levs' : 40,
-                'fig_c_levs'  : 30,
-                'fig_c_col'   : 'k',
-                })
-
-    # Calculate number of columns based on plot_vars length
-    if plot_dict['plot_type']!='mvar':
-        loc_dict.update({
-                'fig_nrow' : len(plot_vars),
-                'fig_ncol' : 1,
-                })
-
-    # Cycle through all possible fields and add them to dict
-    # if not defined
-    for item in [    'fcsteps',\
-                     'fig_name',\
-                     'lonlat',\
-                     'minmax',\
-                     'plot_type',\
-
-                     'fig_size',\
-                     'fig_ncol',\
-                     'fig_nrow',\
-
-                     'fig_cf_levs',\
-                     'fig_c_levs',\
-                     'fig_c_col',\
-
-                     'fig_legend',\
-
-                     'fig_title',\
-                     'fig_ylabel',\
-                     'fig_xlabel',\
-
-                     'fig_proj',\
-
-                     'fig_obs_track',\
-                     'fig_obs_file',\
-                     'fig_obs_col',\
-                     'fig_obs_buff',\
-
-                     'fig_features']:
-
-
-        # Replace defaults if a value is given in plot_dict
-        try:
-            plot_dict[item]
-        except KeyError:
-            loc_dict.update({item:[]})
-        else:
-            if plot_dict[item]:
-                loc_dict.update({item:plot_dict[item]})
-
-    return loc_dict
-
-
-
-
-def plot_tctracks(data_struct,fcsteps,lonlat):
-    "Plot TC tracks for given data"
-
-    # Create a figure
-    fig,ax=plt.subplots(nrows=1,squeeze=0,subplot_kw={'projection': ccrs.PlateCarree()})
-
-    # Plot Damrey track
-    tc_plot(ax[0][0],'damrey_track.dat','red',buff=[])
-
-    # Plot forecast low track
-    cols=['#6a5acd','#00bfff','#0000cd','#00ced1','#5f9ea0','red']
-
-    icol=0
-    for data in data_struct:
-        pmins=create_tc_track(ax[0][0],data,fcsteps,cols[icol])
-
-        print(pmins)
-        icol+=1
-
-    # Legend
-    plot_legend(cols,["2017103112","2017110112"])
-
-    # Plot map features
-    plot_features(ax[0][0],country=True,lam=True,lonlat=lonlat)
-
-
-
-def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
-    "Plot TC tracks for given data"
-
-    fcsteps=plot_dict['fcsteps']
-    lonlat=plot_dict['lonlat']
-
-    # Create a figure
-    fig=plt.figure(figsize=(12,15))
-
-    ax1=fig.add_subplot(211,projection=ccrs.PlateCarree())
-    ax2=fig.add_subplot(212)
-
-    # Get date of first data file for later
-    dt0 = datetime.strptime(plot_vars[0]['dates'], "%Y%m%d%H")     
-
-    # Plot Damrey track
-    xax_obs,obs=tc_plot(ax1,'damrey_track.dat','red',buff=[],match_date_to=[dt0,fcsteps])
-
-    # Plot forecast low track
-    cols=sns.color_palette()
-    #cols=['#6a5acd','#00bfff','#0000cd','#00ced1','#5f9ea0','blue','green','brown','red']
-
-    
-    ifc_diff=0
-    icol=0
-    for data in data_struct:
-        pmins=create_tc_track(ax1,data,fcsteps,cols[icol])
-
-        # Construct x-axis for pmin plot based on forecast initialization date
-        xax=[x*3 for x in fcsteps]
-        print(xax)
-
-        # Check date of currently opened data
-        dt = datetime.strptime(plot_vars[icol]['dates'], "%Y%m%d%H")        
-
-        if dt != dt0:
-            # Get the time difference in time steps [3h]
-            ifc_diff=int((dt-dt0).seconds/3600./3 +(dt-dt0).days*8)
-
-            xax=[(x+ifc_diff)*3 for x in fcsteps]
-            print("Calculated difference in timesteps for data source number ",str(icol)," is",ifc_diff)
-
-        ax2.plot(xax,pmins,color=cols[icol])
-
-        icol+=1
-
-    ## Get Damrey depth information at 6h time interval
-    #ddates,pmins=tc_depth('damrey_track.dat')
-    #
-    ## Match the data with opened one
-    #ifc_diff=int((ddates[0]-dt0).seconds/3600./3 +(ddates[0]-dt0).days*8)
-    #xax=[x*6 for x in range(ifc_diff,len(pmins))]
-    ## Plot
-    ax2.plot(xax_obs,obs,color='r')
-    
-
-    # Change x-tick properties
-    ax2.set_xticks([x*3 for x in range(fcsteps[0],fcsteps[-1]+ifc_diff,2)])
-    ax2.set_xlabel("Hours from "+str(dt0))
-
-    # Legend
-    slegend=[]
-    for ivar in plot_vars:
-        slegend.append(ivar['legend'])
-
-    ncols=1
-    bbox_loc=(0.6,1.2,0,0)
-    if len(plot_vars) > 6:
-        ncols=2
-        bbox_loc=(0.7,1.2,0,0)
-
-    plot_legend(cols,slegend,bbox_loc=bbox_loc,ncols=ncols)
-
-    # Plot map features
-    plot_features(ax1,country=True,lam=True,lonlat=lonlat)
-
-
 
 def create_figure(data_struct,plot_dict):
     "Create figure and return figure and axis handles"
@@ -807,6 +839,104 @@ def create_figure(data_struct,plot_dict):
     ax=fix_ax(ax)
 
     return fig,ax
+
+
+
+def plot_tctracks(data_struct,fcsteps,lonlat):
+    "Plot TC tracks for given data"
+
+    # Create a figure
+    fig,ax=plt.subplots(nrows=1,squeeze=0,subplot_kw={'projection': ccrs.PlateCarree()})
+
+    # Plot Damrey track
+    tc_plot(ax[0][0],'damrey_track.dat','red',buff=[])
+
+    # Plot forecast low track
+    cols=['#6a5acd','#00bfff','#0000cd','#00ced1','#5f9ea0','red']
+
+    icol=0
+    for data in data_struct:
+        pmins=create_tc_track(ax[0][0],data,plot_dict,fcsteps,cols[icol])
+
+        print(pmins)
+        icol+=1
+
+    # Legend
+    plot_legend(cols,["2017103112","2017110112"])
+
+    # Plot map features
+    plot_features(ax[0][0],country=True,lam=True,lonlat=lonlat)
+
+
+
+def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
+    "Plot TC tracks for given data"
+
+    fcsteps=plot_dict['fcsteps']
+    lonlat=plot_dict['lonlat']
+
+    # Create a figure
+    fig=plt.figure(figsize=(12,15))
+
+    ax1=fig.add_subplot(211,projection=ccrs.PlateCarree())
+    ax2=fig.add_subplot(212)
+
+
+    # Get date of first data file for later
+    dt0 = datetime.strptime(plot_vars[0]['dates'], "%Y%m%d%H")     
+
+    # Plot Damrey track
+    if plot_dict['fig_obs_match_time']:
+        xax_obs,obs=tc_plot(ax1,'damrey_track.dat','red',buff=plot_dict['fig_obs_buff'],\
+                                match_date_to=[dt0,fcsteps])
+    else:
+        tc_plot(ax1,'damrey_track.dat','red',buff=plot_dict['fig_obs_buff'],\
+                    match_date_to=[])
+
+    # Create colours
+    cols=col_list_data(data_struct,plot_dict,plot_vars)
+
+    
+    ifc_diff=0
+    icol=0
+    for data in data_struct:
+        # Plot forecast low track
+        pmins=create_tc_track(ax1,data,plot_vars[icol],fcsteps,cols[icol],buff=plot_dict['fig_ens_buff'],\
+                                  ens_show=plot_dict['fig_ens_show'],buff_alpha=plot_dict['fig_ens_alpha'])
+
+        # Construct x-axis for pmin plot based on forecast initialization date
+        xax=[x*3 for x in fcsteps]
+
+        # Check date of currently opened data
+        dt = datetime.strptime(plot_vars[icol]['dates'], "%Y%m%d%H")        
+
+        if dt != dt0:
+            # Get the time difference in time steps [3h]
+            ifc_diff=int((dt-dt0).seconds/3600./3 +(dt-dt0).days*8)
+
+            xax=[(x+ifc_diff)*3 for x in fcsteps]
+            print("Calculated difference in timesteps for data source number ",str(icol)," is",ifc_diff)
+
+        ax2.plot(xax,pmins,color=cols[icol])
+
+        icol+=1
+
+
+    # Plot Damrey observed pressure
+    if plot_dict['fig_obs_match_time']:
+        ax2.plot(xax_obs,obs,color='r')
+    
+
+    # Change x-tick properties
+    ax2.set_xticks([x*3 for x in range(fcsteps[0],fcsteps[-1]+ifc_diff,2)])
+    ax2.set_xlabel("Hours from "+str(dt0))
+
+    # Legend
+    plot_legend(cols,[],plot_vars=plot_vars,plot_dict=plot_dict)
+
+    # Plot map features
+    plot_features(ax1,country=True,lam=True,lonlat=lonlat)
+
 
 
 
@@ -840,13 +970,29 @@ def plot_mvar(itime,data_struct,plot_dict,plot_vars,minmax):
     # Create a figure
     fig,ax=create_figure(data_struct,plot_dict)
 
+    mim1=min(minmax[0][0],minmax[2][0],minmax[4][0])
+    mam1=max(minmax[0][1],minmax[2][1],minmax[4][1])
+
+    mim2=min(minmax[1][0],minmax[3][0],minmax[5][0])
+    mam2=max(minmax[1][1],minmax[3][1],minmax[5][1])
+
+
     # Call plotting code layer
-    call_plot(ax[0],data_struct[0],options=[itime],cmap=ccont   ,minmax=minmax[0],plottype='contour')
-    call_plot(ax[0],data_struct[1],options=[itime],cmap=cmaps[1],minmax=minmax[1])
+    call_plot(ax[0],data_struct[0],options=[itime],cmap=ccont   ,minmax=[mim1,mam1],plottype='contour')
+    call_plot(ax[0],data_struct[1],options=[itime],cmap=cmaps[1],minmax=[mim2,mam2])
         
+    call_plot(ax[1],data_struct[2],options=[itime],cmap=ccont   ,minmax=[mim1,mam1],plottype='contour')
+    call_plot(ax[1],data_struct[3],options=[itime],cmap=cmaps[1],minmax=[mim2,mam2])
+
+    call_plot(ax[2],data_struct[4],options=[itime],cmap=ccont   ,minmax=[mim1,mam1],plottype='contour')
+    call_plot(ax[2],data_struct[5],options=[itime],cmap=cmaps[1],minmax=[mim2,mam2])
+
     # Plot additional requested things
     call_plot_add(ax[0],plot_dict)
+    call_plot_add(ax[1],plot_dict)
+    call_plot_add(ax[2],plot_dict)
         
+
 
 def call_plot_add(ax,plot_dict):
     "Plot in additional features to the figure"

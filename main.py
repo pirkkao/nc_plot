@@ -39,14 +39,19 @@ reload(md)
 #                ...       : ...
 #                ensmean   : ensemble mean
 #                ensstd    : ensemble standard deviation
-#
+#                ensmemb   : construct a list of ensemble member names,
+#                            size indicated with 'nmem' : N.
+# 
 
 main_dict=[]
 main_dict.append({
-        'exps'     : ["hands-on-6"],
-        'dates'    : ["2017103100"],
-        'types'    : ["ensmean","ensstd"]
+        'exps'     : ["hands-on-7","hands-on-8","hands-on-9"],
+        'dates'    : ["2017110212"],
+        'types'    : ["ensmean","ensstd"],
+        'nmem'     : 1,
         })
+
+main_dict=md.update_main_dict(main_dict)
 
 
 # ***********************************************************************
@@ -68,7 +73,7 @@ main_dict.append({
 # If plotting the cyclone tracks, all the elements will be filled
 # with MSL according to the number of opened data sources.
 #
-pvars=[["W10M"]]
+pvars=[["MSL"]]
 
 
 
@@ -98,24 +103,42 @@ pvars=[["W10M"]]
 #
 
 plot_dict={
-    'fcsteps'    : range(14,26), # [10,11,12],
-    'fig_name'   : "damrey_eps2",
-    'lonlat'     : [104.,124,7.25,16.75],
+    'fcsteps'    : range(0,25), # [10,11,12],
+    'fig_name'   : "all_4212",
+    'lonlat'     : [106.,128,7.25,16.75],
     'minmax'     : "rel",
-    'plot_type'  : "2dmap",
+    'plot_type'  : "mvar",
 
     # Define figure physical dimensions (size) and layout (ncol x nrow).
     # If left blank, default settings will used and ncol is defined to equal
     # number of variables to be plotted.
-    'fig_size'   : (40,8),
-    'fig_nrow'   : 1,
-    'fig_ncol'   : 2,
+    'fig_size'   : (12,16),
+    'fig_nrow'   : 3,
+    'fig_ncol'   : 1,
 
     # Define number of contourf (cf_levs) and contour levels (c_levs), and
     # colour of contour lines.
     'fig_cf_levs': [],
-    'fig_c_levs' : [],
-    'fig_c_col'  : 'blue',
+    'fig_c_levs' : 50,
+    'fig_c_col'  : 'b',
+
+    # Track options. 
+    #
+    # 'fig_ens_predef' : Not in use
+    # 'fig_ens_show'   : Show ensemble member tracks with solid lines
+    # 'fig_ens_col'    : Use the same colour (defined here) for all ens members
+    # 'fig_ens_buff'   : Halo size around ens member tracks
+    # 'fig_ens_alpha'  : Alpha (transparency) of ens member halos
+    # 'fig_ctrl_col'   : Colour for control member
+    # 'fig_ensm_col'   : Colour for ensemble mean
+
+    'fig_ens_predef' : False,
+    'fig_ens_show'   : True,
+    'fig_ens_col'    : 'darkmagenta',
+    'fig_ens_buff'   : [],
+    'fig_ens_alpha'  : [],
+    'fig_ctrl_col'   : [],
+    'fig_ensm_col'   : 'magenta',
 
     # Associate a legend name for each variable. Automatically generated options:
     #    'type'
@@ -135,10 +158,11 @@ plot_dict={
     'fig_proj'   : [],
 
     # Change observations used
-    'fig_obs_track' : True, 
-    'fig_obs_file'  : 'damrey_track.dat',
-    'fig_obs_col'   : 'r',
-    'fig_obs_buff'  : [],
+    'fig_obs_track'     : True, 
+    'fig_obs_file'      : 'damrey_track.dat',
+    'fig_obs_col'       : 'r',
+    'fig_obs_buff'      : [],
+    'fig_obs_match_time': False,
 
     # Control plotting of additional map features
     'fig_features'  : True,
@@ -163,6 +187,9 @@ dd = md.get_data_layer(d_path,parallel=False)
 
 # Structure data for plotting
 data_struct=md.structure_for_plotting(dd,plot_vars)
+
+# Deallocate data 
+dd=[]
 
 # Difference between two fields
 #dd_st=[]
