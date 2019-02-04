@@ -8,6 +8,7 @@
 
 import mod_data as mdata
 import mod_plot as mplot
+import mod_tctrack as mtrack
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 
@@ -22,6 +23,7 @@ except NameError:
 
 reload(mdata)
 reload(mplot)
+reload(mtrack)
 
 
 # ***********************************************************************
@@ -48,8 +50,8 @@ reload(mplot)
 main_dict=[]
 main_dict.append({
         'exps'     : ["hands-on-9"],
-        'dates'    : ["2017110300"],
-        'types'    : ["ensmean","p001","p002"],
+        'dates'    : ["2017110200"],
+        'types'    : ["ensmean","p001"],
         'nmem'     : 1,
         })
 
@@ -109,7 +111,7 @@ plot_dict={
     'fig_name'   : "testi",
     'lonlat'     : [106.,113,6.,16.],#[99.,129.,3.2,23.6][106.,113,6.,16.],
     'minmax'     : "rel",
-    'plot_type'  : "2dmap",
+    'plot_type'  : "track",
 
     # Define figure physical dimensions (size) and layout (ncol x nrow).
     # If left blank, default settings will used and ncol is defined to equal
@@ -160,7 +162,7 @@ plot_dict={
     'fig_proj'   : [],
 
     # Change observations used
-    'fig_obs_track'     : False, 
+    'fig_obs_track'     : True, 
     'fig_obs_file'      : 'damrey_track.dat',
     'fig_obs_col'       : 'r',
     'fig_obs_buff'      : [],
@@ -176,10 +178,10 @@ plot_dict={
 # ***********************************************************************
 
 # Get variable list
-plot_vars=mdata.create_vars(pvars,main_dict,plot_dict)
+plot_vars = mdata.create_vars(pvars,main_dict,plot_dict)
 
 # Update plot_dict
-plot_dict=mdata.configure_plot(plot_dict,plot_vars)
+plot_dict = mdata.configure_plot(plot_dict,plot_vars)
 
 # Construct data paths
 d_path = mdata.create_paths(main_dict,basepath="/wrk/ollinaho/DONOTREMOVE/public/")
@@ -188,7 +190,7 @@ d_path = mdata.create_paths(main_dict,basepath="/wrk/ollinaho/DONOTREMOVE/public
 dd = mdata.get_data_layer(d_path,parallel=False)
 
 # Structure data for plotting
-data_struct=mdata.structure_for_plotting(dd,plot_vars)
+data_struct = mdata.structure_for_plotting(dd,plot_vars)
 
 # Deallocate data 
 dd=[]
@@ -203,7 +205,7 @@ if plot_dict['fcsteps']=="all":
     plot_dict['fcsteps']=range(0,dd[0].sizes['time'])
 
 # Get data min/max values from the forecast period
-minmax=mdata.get_minmax_layer(plot_dict['minmax'],data_struct)
+minmax = mdata.get_minmax_layer(plot_dict['minmax'],data_struct)
 
 
 # ***********************************************************************
@@ -247,7 +249,7 @@ with PdfPages(plot_dict['fig_name']+'.pdf') as pdf:
 
         # Call plotting
         #mplot.plot_tctracks(data_struct,plot_dict['fcsteps'],plot_dict['lonlat'])
-        mplot.plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars)
+        mtrack.plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars)
 
         # Save the plot to the pdf and open a new pdf page
         pdf.savefig()
