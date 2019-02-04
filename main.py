@@ -6,11 +6,12 @@
 # Modify and play with this as you wish!
 #
 
-import mod_training as md
+import mod_data as mdata
+import mod_plot as mplot
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 
-# Reload mod_training, needed when running in python-env
+# Reload modules, needed when running in python-env
 try:
     reload  # Python 2.7
 except NameError:
@@ -18,8 +19,9 @@ except NameError:
         from importlib import reload  # Python 3.4+
     except ImportError:
         from imp import reload  # Python 3.0 - 3.3
-reload(md)
 
+reload(mdata)
+reload(mplot)
 
 
 # ***********************************************************************
@@ -45,13 +47,13 @@ reload(md)
 
 main_dict=[]
 main_dict.append({
-        'exps'     : ["hands-on-7","hands-on-8","hands-on-9"],
-        'dates'    : ["2017110212"],
-        'types'    : ["ensmean","ensstd"],
+        'exps'     : ["hands-on-9"],
+        'dates'    : ["2017110300"],
+        'types'    : ["ensmean","p001","p002"],
         'nmem'     : 1,
         })
 
-main_dict=md.update_main_dict(main_dict)
+main_dict=mdata.update_main_dict(main_dict)
 
 
 # ***********************************************************************
@@ -103,24 +105,24 @@ pvars=[["MSL"]]
 #
 
 plot_dict={
-    'fcsteps'    : range(0,25), # [10,11,12],
-    'fig_name'   : "all_4212",
-    'lonlat'     : [106.,128,7.25,16.75],
+    'fcsteps'    : range(5,15), # [10,11,12],(10,21)(20,31)(30,41)
+    'fig_name'   : "testi",
+    'lonlat'     : [106.,113,6.,16.],#[99.,129.,3.2,23.6][106.,113,6.,16.],
     'minmax'     : "rel",
-    'plot_type'  : "mvar",
+    'plot_type'  : "2dmap",
 
     # Define figure physical dimensions (size) and layout (ncol x nrow).
     # If left blank, default settings will used and ncol is defined to equal
     # number of variables to be plotted.
-    'fig_size'   : (12,16),
-    'fig_nrow'   : 3,
-    'fig_ncol'   : 1,
+    'fig_size'   : (12,14),
+    'fig_nrow'   : [],
+    'fig_ncol'   : [],
 
     # Define number of contourf (cf_levs) and contour levels (c_levs), and
     # colour of contour lines.
-    'fig_cf_levs': [],
-    'fig_c_levs' : 50,
-    'fig_c_col'  : 'b',
+    'fig_cf_levs': 7,
+    'fig_c_levs' : 30,
+    'fig_c_col'  : 'magenta',
 
     # Track options. 
     #
@@ -134,7 +136,7 @@ plot_dict={
 
     'fig_ens_predef' : False,
     'fig_ens_show'   : True,
-    'fig_ens_col'    : 'darkmagenta',
+    'fig_ens_col'    : [],
     'fig_ens_buff'   : [],
     'fig_ens_alpha'  : [],
     'fig_ctrl_col'   : [],
@@ -158,11 +160,11 @@ plot_dict={
     'fig_proj'   : [],
 
     # Change observations used
-    'fig_obs_track'     : True, 
+    'fig_obs_track'     : False, 
     'fig_obs_file'      : 'damrey_track.dat',
     'fig_obs_col'       : 'r',
     'fig_obs_buff'      : [],
-    'fig_obs_match_time': False,
+    'fig_obs_match_time': True,
 
     # Control plotting of additional map features
     'fig_features'  : True,
@@ -174,19 +176,19 @@ plot_dict={
 # ***********************************************************************
 
 # Get variable list
-plot_vars=md.create_vars(pvars,main_dict,plot_dict)
+plot_vars=mdata.create_vars(pvars,main_dict,plot_dict)
 
 # Update plot_dict
-plot_dict=md.configure_plot(plot_dict,plot_vars)
+plot_dict=mdata.configure_plot(plot_dict,plot_vars)
 
 # Construct data paths
-d_path = md.create_paths(main_dict,basepath="/wrk/ollinaho/DONOTREMOVE/public/")
+d_path = mdata.create_paths(main_dict,basepath="/wrk/ollinaho/DONOTREMOVE/public/")
 
 # Fetch all data
-dd = md.get_data_layer(d_path,parallel=False)
+dd = mdata.get_data_layer(d_path,parallel=False)
 
 # Structure data for plotting
-data_struct=md.structure_for_plotting(dd,plot_vars)
+data_struct=mdata.structure_for_plotting(dd,plot_vars)
 
 # Deallocate data 
 dd=[]
@@ -201,7 +203,7 @@ if plot_dict['fcsteps']=="all":
     plot_dict['fcsteps']=range(0,dd[0].sizes['time'])
 
 # Get data min/max values from the forecast period
-minmax=md.get_minmax_layer(plot_dict['minmax'],data_struct)
+minmax=mdata.get_minmax_layer(plot_dict['minmax'],data_struct)
 
 
 # ***********************************************************************
@@ -218,8 +220,8 @@ with PdfPages(plot_dict['fig_name']+'.pdf') as pdf:
         for fcstep in plot_dict['fcsteps']:
 
             # Call plotting
-            #md.plot_data(fcstep,data_struct,lonlat=plot_dict['lonlat'],minmax=minmax,plot_vars=plot_vars)
-            md.plot_data(fcstep,data_struct,plot_dict,plot_vars,minmax)
+            #mplot.plot_data(fcstep,data_struct,lonlat=plot_dict['lonlat'],minmax=minmax,plot_vars=plot_vars)
+            mplot.plot_data(fcstep,data_struct,plot_dict,plot_vars,minmax)
 
             # Save the plot to the pdf and open a new pdf page
             pdf.savefig()
@@ -233,7 +235,7 @@ with PdfPages(plot_dict['fig_name']+'.pdf') as pdf:
         for fcstep in plot_dict['fcsteps']:
 
             # Call plotting
-            md.plot_mvar(fcstep,data_struct,plot_dict,plot_vars,minmax)
+            mplot.plot_mvar(fcstep,data_struct,plot_dict,plot_vars,minmax)
 
             # Save the plot to the pdf and open a new pdf page
             pdf.savefig()
@@ -244,8 +246,8 @@ with PdfPages(plot_dict['fig_name']+'.pdf') as pdf:
     elif plot_dict['plot_type']=="track":
 
         # Call plotting
-        #md.plot_tctracks(data_struct,plot_dict['fcsteps'],plot_dict['lonlat'])
-        md.plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars)
+        #mplot.plot_tctracks(data_struct,plot_dict['fcsteps'],plot_dict['lonlat'])
+        mplot.plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars)
 
         # Save the plot to the pdf and open a new pdf page
         pdf.savefig()
