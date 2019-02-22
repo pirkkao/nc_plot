@@ -4,6 +4,8 @@ import numpy as np
 import xarray as xr
 import cartopy.crs as ccrs
 
+from mod_plot import get_varname
+
 def update_main_dict(main_dict):
     "Update main_dict for an ensemble"
 
@@ -157,10 +159,11 @@ and opened data files. Not all data sources will be plotted.\n")
 
 
 
-def create_paths(main_dict,basepath):
+def create_paths(main_dict):
     "Unroll dictionary elements to construct data paths"
 
     d_path=[]
+
     for sub_dict in main_dict:
 
         # Unroll dictionary elements
@@ -169,7 +172,13 @@ def create_paths(main_dict,basepath):
         fnames=sub_dict['types']
 
         # Construct file paths
+        nbpath=0
         for exp in exps:
+
+            basepath=sub_dict['paths'][nbpath]
+            if len(sub_dict['paths'])>1:
+                nbpath+=1
+
             for date in dates:
                 for fnam in fnames:
                     d_path.append(basepath+exp+"/"+date+"/"+fnam+".nc")

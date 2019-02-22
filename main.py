@@ -49,9 +49,18 @@ reload(mtrack)
 
 main_dict=[]
 main_dict.append({
-        'exps'     : ["hands-on-9"],
-        'dates'    : ["2017110200"],
-        'types'    : ["ensmean","p001"],
+        'exps'     : ["prod_t159_eda+sv_sisu"],
+        'paths'    : ["/wrk/ollinaho/DONOTREMOVE/oeps_pp/"],
+        'dates'    : ["2016120100"],
+        'types'    : ["p000"],
+        'nmem'     : 1,
+        })
+
+main_dict.append({
+        'exps'     : ["AN"],
+        'paths'    : ["/wrk/ollinaho/DONOTREMOVE/public/"],
+        'dates'    : ["2016120100"],
+        'types'    : ["an_test"],
         'nmem'     : 1,
         })
 
@@ -77,7 +86,7 @@ main_dict=mdata.update_main_dict(main_dict)
 # If plotting the cyclone tracks, all the elements will be filled
 # with MSL according to the number of opened data sources.
 #
-pvars=[["MSL"]]
+pvars=[["T",4]]
 
 
 
@@ -107,11 +116,11 @@ pvars=[["MSL"]]
 #
 
 plot_dict={
-    'fcsteps'    : range(5,15), # [10,11,12],(10,21)(20,31)(30,41)
+    'fcsteps'    : range(5,9), # [10,11,12],(10,21)(20,31)(30,41)
     'fig_name'   : "testi",
-    'lonlat'     : [106.,113,6.,16.],#[99.,129.,3.2,23.6][106.,113,6.,16.],
-    'minmax'     : "rel",
-    'plot_type'  : "track",
+    'lonlat'     : "global", #[106.,113,6.,16.],#[99.,129.,3.2,23.6][106.,113,6.,16.],
+    'minmax'     : "abs",
+    'plot_type'  : "2dmap",
 
     # Define figure physical dimensions (size) and layout (ncol x nrow).
     # If left blank, default settings will used and ncol is defined to equal
@@ -122,7 +131,7 @@ plot_dict={
 
     # Define number of contourf (cf_levs) and contour levels (c_levs), and
     # colour of contour lines.
-    'fig_cf_levs': 7,
+    'fig_cf_levs': 20,
     'fig_c_levs' : 30,
     'fig_c_col'  : 'magenta',
 
@@ -162,7 +171,7 @@ plot_dict={
     'fig_proj'   : [],
 
     # Change observations used
-    'fig_obs_track'     : True, 
+    'fig_obs_track'     : False, 
     'fig_obs_file'      : 'damrey_track.dat',
     'fig_obs_col'       : 'r',
     'fig_obs_buff'      : [],
@@ -184,7 +193,7 @@ plot_vars = mdata.create_vars(pvars,main_dict,plot_dict)
 plot_dict = mdata.configure_plot(plot_dict,plot_vars)
 
 # Construct data paths
-d_path = mdata.create_paths(main_dict,basepath="/wrk/ollinaho/DONOTREMOVE/public/")
+d_path = mdata.create_paths(main_dict)
 
 # Fetch all data
 dd = mdata.get_data_layer(d_path,parallel=False)
