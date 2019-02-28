@@ -250,10 +250,10 @@ def contourf_cartopy(ax,data,fmin,fmax,cmap):
     else:
         ncolors=len(cmap)-1
 
-    # mvar specific settings for ens spread
-    if len(cmap)==2:
-        ncolors=cmap[1]
-        cmap=cmap[0]
+        # mvar specific settings for ens spread
+        if len(cmap)==2:
+            ncolors=cmap[1]
+            cmap=cmap[0]
 
     # Determine contour intervals
     if not fmin==[]:
@@ -373,6 +373,9 @@ def col_maps_data(data_struct,plot_dict,plot_vars=[]):
         if plot_vars:
             if plot_vars[idata]['ens']=='ensstd':
                 icol=1
+
+            # TEMP SOLUTION FOR SCORES
+            icol=1
 
         cmap=col_maps(get_varname(data),clevs)[icol]
 

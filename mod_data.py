@@ -4,6 +4,9 @@ import numpy as np
 import xarray as xr
 import cartopy.crs as ccrs
 
+import configparser
+from configparser import SafeConfigParser
+
 from mod_plot import get_varname
 
 def update_main_dict(main_dict):
@@ -34,6 +37,89 @@ def update_main_dict(main_dict):
 
 
 
+def data_config(name):
+
+    # Read in configparser configuration file
+    parser = SafeConfigParser()
+    parser.read("configs/data."+name)
+
+    #for section in parser.sections():        
+    #    for name, value in parser.items(section):
+    #        print(section, name, value)
+
+
+    # Return as a dictionary for further use
+    my_config_parser_dict = {s:dict(parser.items(s)) for s in parser.sections()}
+
+    # Return sub variables for further use
+    main_dict = parse_data_dict(my_config_parser_dict)
+    pvars     = parse_vars_dict(my_config_parser_dict)
+    operators = parse_oper_dict(my_config_parser_dict)
+
+    return main_dict,pvars,operators
+
+
+
+def parse_data_dict(mydict):
+    # Form a dictionary similar to what the old main_dict was doing.
+    # Parse comma-separated values from the dictionary
+
+    main_dict=[]
+    exp=mydict['DATA']
+    an=mydict['AN']
+
+    # Read only from DATA part
+    for item in exp:
+        sub_dict={s:exp[s].split(',') for s in exp}
+            
+    main_dict.append(sub_dict)
+
+
+    # Add analysis if defined
+    if an:
+        for item in an:
+            sub_dict={s:an[s].split(',') for s in an}
+        
+        main_dict.append(sub_dict)
+
+    return main_dict
+
+
+
+def parse_vars_dict(mydict):
+    # Return variable fields as an array
+
+    vari=[]
+    for item in mydict['variables']:
+        vari.append(mydict['variables'][item].split(','))
+    
+    # Change level field into integer number
+    for ivar in range(0,len(vari)):
+        try:
+            vari[ivar][1]
+        except IndexError:
+            pass
+        else:
+            vari[ivar][1]=int(vari[ivar][1])
+
+    return vari
+
+
+def parse_oper_dict(mydict):
+    # Return data operators as an array
+
+    oper=[]
+    for item in mydict['scores']:
+        oper.append(mydict['scores'][item].split(','))
+
+    # Change data source numbers to integers
+    for ioper in range(0,len(oper)):
+        oper[ioper][1]=int(oper[ioper][1])
+        oper[ioper][2]=int(oper[ioper][2])
+    
+    return oper
+
+
 def create_vars(pvars,main_dict,plot_dict):
     "Create a dictionary for variables to be plotted"
 
@@ -57,7 +143,7 @@ def create_vars(pvars,main_dict,plot_dict):
                     md_types.append(typ)
                     md_exps.append(exp)
 
-                    if typ=="ensstd":
+                    if typ=="ensstd" or typ=="an_test":
                         typ_ens.append("ensstd")
                     elif typ=="ensmean":
                         typ_ens.append("ensmean")
@@ -187,25 +273,31 @@ def create_paths(main_dict):
 
 
 
-def get_data_layer(pnames,parallel=True):
+def get_data_layer(pnames,plot_vars,parallel=True):
     "Controls parallel pool or does a serial fetching of data"
 
     if parallel:
+        exit("Not implemented correctly")
         pool=Pool(len(pnames))
         alldata=pool.map(get_data, pnames)
         pool.close()
         pool.join()
 
     else:
+        idata=0
         alldata=[]
         for psource in pnames:
-            alldata.append(get_data(psource))
+            data=get_data(psource,plot_vars[idata])
+            alldata.append(data)
+
+            idata+=1
+
 
     return alldata
 
 
 
-def get_data(data_path):
+def get_data(data_path,plot_vars):
     "Open NetCDF file containing data"
 
     with xr.open_dataset(data_path) as ds:
@@ -219,8 +311,43 @@ def get_data(data_path):
         # stream otherwise
         data=xr.Dataset.copy(ds,deep=True)
 
+        # Get variable gribtable name
+        item=plot_vars['vars'][0]
+
+        if item=='Z'  : item2='var129'
+        if item=='T'  : item2='var130'
+        if item=='U'  : item2='var131'
+        if item=='V'  : item2='var132'
+        if item=='Q'  : item2='var133'
+        if item=='VO' : item2='var138'
+        if item=='D'  : item2='var155'
+            
+        if item=='10m gust (3h)'   : item2='var28'
+        if item=='10m gust (inst)' : item2='var29'
+        if item=='CAPES' : item2='var44'
+        if item=='CAPE'  : item2='var59' 
+        if item=='TCW'   : item2='var136'
+        if item=='MSL'   : item2='var151'
+        if item=='TCC'   : item2='var164'
+        if item=='U10M'  : item2='var165'
+        if item=='V10M'  : item2='var166'
+        if item=='T2M'   : item2='var167'
+        if item=='D2M'   : item2='var168'
+        if item=='TP'    : item2='var228'
+        if item=='W10M'  : item2='var255'
+
+        # Pick wanted variable and level (if applicable) from the data
+        data_reduced=data[item2]
+
+        if plot_vars['levs']:
+            data_reduced=data_reduced.isel(plev=plot_vars['nlevs'][0])
+
+        # Change variable name to ecmwf-gribtable one
+        data_reduced.name=item
+        
         # Change variable names to more understandable form
-        for item in ds.data_vars:
+        if 1==0:
+        #for item in ds.data_vars:
             if item=='var129': data.rename({'var129': 'Z'},inplace=True)
             if item=='var130': data.rename({'var130': 'T'},inplace=True)
             if item=='var131': data.rename({'var131': 'U'},inplace=True)
@@ -243,9 +370,30 @@ def get_data(data_path):
             if item=='var228': data.rename({'var228': 'TP'},inplace=True)
             if item=='var255': data.rename({'var255': 'W10M'},inplace=True)
         
-        return data
+        return data_reduced
 
 
+
+
+def structure_for_plotting2(data,operators):
+    "Unroll data into plottable form"
+
+    idata=0
+    data_struct=[]
+
+    # Unroll operators
+    for operator in operators:
+        
+        if operator[0]=='diff':
+            data_struct.append(data[operator[2]]-data[operator[1]])
+
+        if operator[0]=='rmse':
+            data_struct.append(np.sqrt(np.square(data[operator[2]]-data[operator[1]])))
+
+        if operator[0]=='bias':
+            data_struct.append(abs(data[operator[2]]-data[operator[1]]))
+
+    return data_struct
 
 
 
@@ -284,6 +432,8 @@ def configure_plot(plot_dict,plot_vars):
 
     # False and None values are the same, need (probably not)
     # to define False sets here to be included
+    loc_dict.update({'minmax' : ""})
+
     loc_dict.update({'fig_title' : False})
     loc_dict.update({'fig_ylabel': False})
     loc_dict.update({'fig_xlabel': False})

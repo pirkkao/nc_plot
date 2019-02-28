@@ -29,66 +29,25 @@ reload(mtrack)
 # ***********************************************************************
 # DATA CONFIGURATION
 # ***********************************************************************
-#
-# Create a dictionary for each data source you want to visualize
-#
-# 'exps'      : model forecast experiment identifier
-#
-# 'dates'     : forecast initialization dates
-#
-# 'types'     : what to plot
-#                p000/ctrl : control forecast
-#                p001      : ensemble member 1
-#                p002      : ensemble member 2
-#                ...       : ...
-#                ensmean   : ensemble mean
-#                ensstd    : ensemble standard deviation
-#                ensmemb   : construct a list of ensemble member names,
-#                            size indicated with 'nmem' : N.
-# 
 
-main_dict=[]
-main_dict.append({
-        'exps'     : ["prod_t159_eda+sv_sisu"],
-        'paths'    : ["/wrk/ollinaho/DONOTREMOVE/oeps_pp/"],
-        'dates'    : ["2016120100"],
-        'types'    : ["p000"],
-        'nmem'     : 1,
-        })
+exp="eda+sv"
 
-main_dict.append({
-        'exps'     : ["AN"],
-        'paths'    : ["/wrk/ollinaho/DONOTREMOVE/public/"],
-        'dates'    : ["2016120100"],
-        'types'    : ["an_test"],
-        'nmem'     : 1,
-        })
+main_dict, pvars, operators = mdata.data_config(exp)
 
-main_dict=mdata.update_main_dict(main_dict)
+print()
+print(main_dict)
 
+print()
+print(pvars)
+
+print()
+print(operators)
+
+#exit()
 
 # ***********************************************************************
 # PLOTTING CONFIGURATION
 # ***********************************************************************
-#
-# Define variables to be plotted.
-# 
-# Fill in all the variables you want to plot into the pvars-array:
-# [["MSL"], ["TP"]]
-#
-# For model fields on vertical levels, give the level number with the
-# variable:
-# [["T",1], ["T",10], ["MSL"]]
-# 
-# If only one variable is given, the dictionary will be filled with
-# as many elements as there are data sources open.
-#
-# If plotting the cyclone tracks, all the elements will be filled
-# with MSL according to the number of opened data sources.
-#
-pvars=[["T",4]]
-
-
 
 # Create a configuration dictionary
 #
@@ -119,15 +78,15 @@ plot_dict={
     'fcsteps'    : range(5,9), # [10,11,12],(10,21)(20,31)(30,41)
     'fig_name'   : "testi",
     'lonlat'     : "global", #[106.,113,6.,16.],#[99.,129.,3.2,23.6][106.,113,6.,16.],
-    'minmax'     : "abs",
+    'minmax'     : "rel",
     'plot_type'  : "2dmap",
 
     # Define figure physical dimensions (size) and layout (ncol x nrow).
     # If left blank, default settings will used and ncol is defined to equal
     # number of variables to be plotted.
     'fig_size'   : (12,14),
-    'fig_nrow'   : [],
-    'fig_ncol'   : [],
+    'fig_nrow'   : 2,
+    'fig_ncol'   : 1,
 
     # Define number of contourf (cf_levs) and contour levels (c_levs), and
     # colour of contour lines.
@@ -196,13 +155,19 @@ plot_dict = mdata.configure_plot(plot_dict,plot_vars)
 d_path = mdata.create_paths(main_dict)
 
 # Fetch all data
-dd = mdata.get_data_layer(d_path,parallel=False)
+data_struct = mdata.get_data_layer(d_path,plot_vars,parallel=False)
 
 # Structure data for plotting
-data_struct = mdata.structure_for_plotting(dd,plot_vars)
+#data_struct = mdata.structure_for_plotting(dd,plot_vars)
 
 # Deallocate data 
-dd=[]
+#dd=[]
+
+data_struct = mdata.structure_for_plotting2(data_struct,operators)
+
+print(data_struct)
+
+#exit()
 
 # Difference between two fields
 #dd_st=[]

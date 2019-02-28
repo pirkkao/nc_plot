@@ -1,0 +1,61 @@
+[DEFAULT]
+
+
+[DATA]
+#
+# Create a dictionary for each data source you want to 
+# visualize
+#
+# 'exps'  : model forecast experiment identifier
+#
+# 'dates' : forecast initialization dates
+#
+# 'types' : what to plot
+#            p000/ctrl : control forecast
+#            p001      : ensemble member 1
+#            p002      : ensemble member 2
+#            ...       : ...
+#            ensmean   : ensemble mean
+#            ensstd    : ensemble standard deviation
+#            ensmemb   : construct a list of ensemble member 
+#	     	       	 names, size indicated with 'nmem' : N.
+# 
+exps  = prod_t159_eda+sv_sisu
+paths = /wrk/ollinaho/DONOTREMOVE/oeps_pp/
+dates = 2016120100
+types = p000,ensmean
+nmem  = 1
+
+
+[AN] 
+exps  = AN
+paths = /wrk/ollinaho/DONOTREMOVE/public/
+dates = 2016120100
+types = an_test
+
+
+[variables]
+# Give variables as 
+# "name,level" (if on vertical levels)
+# "name"       (if on surface)
+#
+# Defining only one variable when multiple data sources
+# are open will result in the same variable being used
+# for all data sources.
+#
+# If plotting the cyclone tracks, all the elements will be filled
+# with MSL according to the number of opened data sources.
+
+var1 = T, 4
+
+
+[scores]
+operator1 = rmse,-1,0
+operator2 = rmse,-1,1
+
+
+[2dplot]
+
+
+[mvar]
+
