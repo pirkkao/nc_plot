@@ -22,7 +22,7 @@ if not sys.warnoptions:
 
 
 
-def plot_legend(cols,legend_texts,plot_vars=[],plot_dict=[]):
+def plot_legend(cols,legend_texts,plot_vars=[],plot_dict=[],bbox_loc=[]):
     "Plot legend box"
 
     # Default number of legend columns
@@ -46,9 +46,6 @@ def plot_legend(cols,legend_texts,plot_vars=[],plot_dict=[]):
         elif len(plot_vars) > 6:
             ncols=2
             bbox_loc=(0.7,1.15,0,0)
-
-    else:        
-        bbox_loc=[]
 
     # Create a legend
     legend_artists = [Line([0], [0], color=color, linewidth=2)

@@ -22,16 +22,16 @@
 # 
 exps  = prod_t159_eda+sv_sisu
 paths = /wrk/ollinaho/DONOTREMOVE/oeps_pp/
-dates = 2016120100
-types = p000,ensmean
+dates = 2016120100,2016120900,2016121700
+types = p000,ensmean,ensstd
 nmem  = 1
 
 
 [AN] 
 exps  = AN
 paths = /wrk/ollinaho/DONOTREMOVE/public/
-dates = 2016120100
-types = an_test
+dates = 2016120100,2016120900,2016121700
+types = an_pl
 
 
 [variables]
@@ -52,6 +52,7 @@ var1 = T, 4
 [scores]
 operator1 = rmse,-1,0
 operator2 = rmse,-1,1
+operator3 = spread,2,2
 
 
 [2dplot]

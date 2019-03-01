@@ -34,14 +34,17 @@ exp="eda+sv"
 
 main_dict, pvars, operators = mdata.data_config(exp)
 
-print()
+print("MAIN_DICT:")
 print(main_dict)
-
 print()
+
+print("PVARS:")
 print(pvars)
-
 print()
+
+print("OPERATORS:")
 print(operators)
+print()
 
 #exit()
 
@@ -79,13 +82,13 @@ plot_dict={
     'fig_name'   : "testi",
     'lonlat'     : "global", #[106.,113,6.,16.],#[99.,129.,3.2,23.6][106.,113,6.,16.],
     'minmax'     : "rel",
-    'plot_type'  : "2dmap",
+    'plot_type'  : "score",
 
     # Define figure physical dimensions (size) and layout (ncol x nrow).
     # If left blank, default settings will used and ncol is defined to equal
     # number of variables to be plotted.
-    'fig_size'   : (12,14),
-    'fig_nrow'   : 2,
+    'fig_size'   : (8,5),
+    'fig_nrow'   : 1,
     'fig_ncol'   : 1,
 
     # Define number of contourf (cf_levs) and contour levels (c_levs), and
@@ -119,7 +122,7 @@ plot_dict={
     #    'datetype'
     #    'expdatetype'
     # or ["1","2","3","4"]
-    'fig_legend' :'datetype',
+    'fig_legend' :'type',
 
     # Title, y- and x-labels
     'fig_title'  : [],
@@ -163,9 +166,9 @@ data_struct = mdata.get_data_layer(d_path,plot_vars,parallel=False)
 # Deallocate data 
 #dd=[]
 
-data_struct = mdata.structure_for_plotting2(data_struct,operators)
+data_struct = mdata.structure_for_plotting2(data_struct,main_dict,operators)
 
-print(data_struct)
+#print(data_struct)
 
 #exit()
 
@@ -222,10 +225,19 @@ with PdfPages(plot_dict['fig_name']+'.pdf') as pdf:
     elif plot_dict['plot_type']=="track":
 
         # Call plotting
-        #mplot.plot_tctracks(data_struct,plot_dict['fcsteps'],plot_dict['lonlat'])
         mtrack.plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars)
 
         # Save the plot to the pdf and open a new pdf page
         pdf.savefig()
         plt.close()
 
+
+    # PLOT SCORES
+    elif plot_dict['plot_type']=="score":
+
+        # Call plotting
+        mplot.plot_scores(plot_dict['fcsteps'],data_struct,plot_dict,plot_vars,minmax)
+
+        # Save the plot to the pdf and open a new pdf page
+        pdf.savefig()
+        plt.close()

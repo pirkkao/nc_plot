@@ -82,6 +82,7 @@ def parse_data_dict(mydict):
         
         main_dict.append(sub_dict)
 
+
     return main_dict
 
 
@@ -113,10 +114,11 @@ def parse_oper_dict(mydict):
         oper.append(mydict['scores'][item].split(','))
 
     # Change data source numbers to integers
-    for ioper in range(0,len(oper)):
+    for ioper in range(0,len(oper)):        
         oper[ioper][1]=int(oper[ioper][1])
         oper[ioper][2]=int(oper[ioper][2])
     
+
     return oper
 
 
@@ -136,8 +138,8 @@ def create_vars(pvars,main_dict,plot_dict):
     typ_ens=[]
     for sub_dict in main_dict:
         for exp in sub_dict['exps']:
-            for date in sub_dict['dates']:
-                for typ in sub_dict['types']:
+            for typ in sub_dict['types']:
+                for date in sub_dict['dates']:
                     md_sum+=1
                     md_dates.append(date)
                     md_types.append(typ)
@@ -235,8 +237,8 @@ and opened data files. Not all data sources will be plotted.\n")
                         'ens'   : typ_ens[idata],
                         })
                         
-
-    print("")
+    print()
+    print("DATA CONFIGURATION:")
     for plv in plot_vars:
         print(plv)
     print("")
@@ -265,8 +267,8 @@ def create_paths(main_dict):
             if len(sub_dict['paths'])>1:
                 nbpath+=1
 
-            for date in dates:
-                for fnam in fnames:
+            for fnam in fnames:
+                for date in dates:
                     d_path.append(basepath+exp+"/"+date+"/"+fnam+".nc")
 
     return d_path
@@ -301,15 +303,10 @@ def get_data(data_path,plot_vars):
     "Open NetCDF file containing data"
 
     with xr.open_dataset(data_path) as ds:
-        ds=xr.open_dataset(data_path)
-
-        # Print out headers
-        #print(ds.keys())
-        #print 
 
         # Do a deep copy, can't use the data further down the
-        # stream otherwise
-        data=xr.Dataset.copy(ds,deep=True)
+        # stream otherwise [NOT ACTUALLY NEEDED!]
+        #data=xr.Dataset.copy(ds,deep=True)
 
         # Get variable gribtable name
         item=plot_vars['vars'][0]
@@ -336,8 +333,10 @@ def get_data(data_path,plot_vars):
         if item=='TP'    : item2='var228'
         if item=='W10M'  : item2='var255'
 
+        print("GETTING: "+item+" from "+data_path)
+
         # Pick wanted variable and level (if applicable) from the data
-        data_reduced=data[item2]
+        data_reduced=ds[item2]
 
         if plot_vars['levs']:
             data_reduced=data_reduced.isel(plev=plot_vars['nlevs'][0])
@@ -375,26 +374,98 @@ def get_data(data_path,plot_vars):
 
 
 
-def structure_for_plotting2(data,operators):
+def structure_for_plotting2(data,main_dict,operators):
     "Unroll data into plottable form"
 
-    idata=0
     data_struct=[]
+
+    # Get number of dates
+    N = len(main_dict[0]['dates'])
+    
+    # Get number of data sources
+    ndata = len(data)
+
+    # Need to change time axis in order to combine data 
+    # from different dates
+    for dd in data:
+        dd.coords['time'] = range(0,241,6)
 
     # Unroll operators
     for operator in operators:
         
-        if operator[0]=='diff':
-            data_struct.append(data[operator[2]]-data[operator[1]])
+        # Check from which element to start reading the data
+        index=[]
+        for ii in [1,2]:
+            ipos=operator[ii]
+            if ipos == -1:
+                ipos = ndata - N
+            else:
+                ipos*=N
+            index.append(ipos)
 
+        #print(N,ndata,index)
+
+        # RMSE
         if operator[0]=='rmse':
-            data_struct.append(np.sqrt(np.square(data[operator[2]]-data[operator[1]])))
+            data_struct.append(calc_rmse(data,main_dict,index))
 
-        if operator[0]=='bias':
-            data_struct.append(abs(data[operator[2]]-data[operator[1]]))
+        # SPREAD
+        if operator[0]=='spread':
+            data_struct.append(calc_spread(data,main_dict,index))
+
 
     return data_struct
 
+
+def calc_spread(data,main_dict,index):
+    "Calculate average spread over N dates"
+
+    # Get number of dates
+    N = len(main_dict[0]['dates'])
+
+    # Loop over dates
+    spread=0
+    idate=0
+    for date in main_dict[0]['dates']:
+        
+        i1=index[0]+idate
+
+        spread = spread + data[i1]
+
+        idate+=1
+
+    spread = spread/N
+
+    return spread
+    
+
+
+def calc_rmse(data,main_dict,index):
+    "Calculate RMSE of data1 and data2 over N dates"
+
+    # Get number of dates
+    N = len(main_dict[0]['dates'])
+
+    # Loop over dates
+    rmse=0
+    idate=0
+    for date in main_dict[0]['dates']:
+        
+        i1=index[0]+idate
+        i2=index[1]+idate
+
+        rmse = rmse + np.square(data[i1]-data[i2])
+
+        #print()
+        #print(i1,i2)
+        #print(np.square(data[i1]-data[i2]).mean(['lat','lon']))
+        #print()
+
+        idate+=1
+
+    rmse = np.sqrt(rmse/N)
+
+    return rmse
 
 
 def structure_for_plotting(dd,plot_vars):

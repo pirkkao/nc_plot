@@ -82,6 +82,37 @@ def plot_mvar(itime,data_struct,plot_dict,plot_vars,minmax):
 
 
 
+def plot_scores(time,data_struct,plot_dict,plot_vars,minmax):
+    "Plot scores values as a function of forecast lead time"
+
+
+    # Create a figure
+    fig,ax=plt.subplots(nrows=1,squeeze=0,figsize=plot_dict['fig_size'])
+
+    # Fix the axis handle to be simply ax[0]
+    ax=fix_ax(ax)
+
+    plt.tight_layout()
+    
+    # Loop over data
+    for data in data_struct:
+        call_score(ax[0],data)
+
+    plot_legend(["b","orange","g"],["CTRL","ENSM","SPREAD"],bbox_loc=(0.3,1.,0,0))
+
+
+def call_score(ax,data):
+    
+    dd=data.mean(['lon','lat'])
+
+    print(dd)
+
+    #ax.plot(dd)
+    #dd.plot()
+    xr.plot.line(dd,ax=ax)
+
+
+
 def call_plot_add(ax,plot_dict):
     "Plot in additional features to the figure"
     
@@ -218,24 +249,6 @@ def calc_stats(an,data):
     #print(np.linalg.norm(an-data)/np.sqrt(160*320))
 
     return rmse   
-
-
-
-def calc_ens_mean(data):
-    "Calculate global/regional statistics from the given data"
-
-    ensm=data.mean(dim='time')
-
-    return ensm
-
-
-
-def calc_ens_std(data):
-    "Calculate global/regional statistics from the given data"
-
-    enss=data.std(dim='time')
-
-    return enss
     
 
             
