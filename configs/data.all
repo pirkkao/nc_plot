@@ -20,17 +20,17 @@
 #            ensmemb   : construct a list of ensemble member 
 #	     	       	 names, size indicated with 'nmem' : N.
 # 
-exps  = prod_t159_eda+sv_sisu
+exps  = prod_t159_eda+sv_sisu,prod_t159_eda_sisu,prod_t159_sv_sisu
 paths = /wrk/ollinaho/DONOTREMOVE/oeps_pp/
-dates = 2016120100/to/2016120900/by/8
-types = p000,ensmemb
-nmem  = 51
+dates = 2016120100
+types = p000,ensmean,ensstd
+nmem  = 1
 
 
 [AN] 
 exps  = AN
 paths = /wrk/ollinaho/DONOTREMOVE/public/
-dates = 2016120100/to/2016120900/by/8
+dates = 2016120100
 types = an_pl
 
 
@@ -50,11 +50,14 @@ var1 = T, 4
 
 
 [scores]
-operator1 = crps,-1,0/to/16/by/2
-operator2 = crps,-1,0/to/20/by/2
-operator3 = crps,-1,0/to/24/by/2
-operator4 = crps,-1,0/to/40/by/2
-operator5 = crps,-1,0/to/51/by/1
+operator1 = rmse,-1,0
+operator2 = rmse,-1,1
+operator3 = spread,2,2
+operator5 = rmse,-1,4
+operator6 = spread,5,5
+operator8 = rmse,-1,7
+operator9 = spread,8,8
+
 
 [2dplot]
 

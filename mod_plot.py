@@ -82,34 +82,145 @@ def plot_mvar(itime,data_struct,plot_dict,plot_vars,minmax):
 
 
 
-def plot_scores(time,data_struct,plot_dict,plot_vars,minmax):
+def plot_scores_crps_vs_fair(time,data_struct,plot_dict,plot_vars,minmax):
     "Plot scores values as a function of forecast lead time"
 
+    print()
+    print("CREATING FIGURE")
 
     # Create a figure
-    fig,ax=plt.subplots(nrows=1,squeeze=0,figsize=plot_dict['fig_size'])
+    fig,ax=plt.subplots(nrows=5,ncols=2,figsize=plot_dict['fig_size'])
 
     # Fix the axis handle to be simply ax[0]
     ax=fix_ax(ax)
-
     plt.tight_layout()
     
-    # Loop over data
-    for data in data_struct:
-        call_score(ax[0],data)
+    cols=['r','b']
+    styles=['-','--']
+    names=['N=8','N=10','N=12','N=20','N=50']
 
-    plot_legend(["b","orange","g"],["CTRL","ENSM","SPREAD"],bbox_loc=(0.3,1.,0,0))
+    area='glob'
+    time=[range(0,21),range(21,41)]
+
+    for icol in [0,1]:
+
+        for i in range(0,5):
+            # Loop over data
+            idata=0
+            for data in data_struct[i*2:(i+1)*2]:
+                call_score(ax[i*2+icol],data,area,time[icol],cols[idata],styles[idata])
+
+                idata+=1
 
 
-def call_score(ax,data):
+def plot_scores2(time,data_struct,plot_dict,plot_vars,minmax):
+    "Plot scores values as a function of forecast lead time"
+
+    print()
+    print("CREATING FIGURE")
+
+    # Create a figure
+    fig,ax=plt.subplots(nrows=3,ncols=3,figsize=plot_dict['fig_size'])
+
+    # Fix the axis handle to be simply ax[0]
+    ax=fix_ax(ax)
+    #plt.tight_layout()
     
+    cols=['r','b','g','violet','k']
+    styles=['-','--',':','-.','-']
+
+    areas=['nh','tr','sh']
+    time=[range(0,9),range(9,21),range(21,41)]
+    ntime=len(time)
+
+    # Loop over FC lead times
+    for itime in range(0,ntime):
+
+        # Loop over areas
+        for iarea in range(0,len(areas)):
+
+            # Loop over data
+            idata=0
+            for data in data_struct[0:2]:
+                call_score(ax[iarea*ntime+itime],data,areas[iarea],time[itime],cols[0],styles[idata])
+
+                idata+=1
+
+            idata=0
+            for data in data_struct[8:10]:
+                call_score(ax[iarea*ntime+itime],data,areas[iarea],time[itime],cols[1],styles[idata])
+
+                idata+=1
+
+    #plot_legend(cols[0:5],["8","25","50"],bbox_loc=(0.3,1.,0,0))
+
+
+
+def plot_scores3(time,data_struct,plot_dict,plot_vars,minmax):
+    "Plot scores values as a function of forecast lead time"
+
+    print()
+    print("CREATING FIGURE")
+
+    # Create a figure
+    fig,ax=plt.subplots(nrows=3,ncols=3,figsize=plot_dict['fig_size'])
+
+    # Fix the axis handle to be simply ax[0]
+    ax=fix_ax(ax)
+    #plt.tight_layout()
+    
+    cols=['r','b','g','violet','k']
+    styles=['-','--',':','-.','-']
+    names=['N=8','N=10','N=12','N=20','N=50']
+
+    areas=['nh','tr','sh']
+    time=[range(0,9),range(9,21),range(21,41)]
+    ntime=len(time)
+
+    # Loop over FC lengths
+    for itime in range(0,ntime):
+
+        # Loop over areas
+        for iarea in range(0,len(areas)):
+
+            # Loop over data
+            idata=0
+            for data in data_struct:
+                call_score(ax[iarea*ntime+itime],data,areas[iarea],time[itime],cols[idata],styles[idata])
+
+                idata+=1
+
+            if itime==0 and iarea==0:
+                plot_legend(cols,names,bbox_loc=(0.3,1.,0,0))
+
+            ax[iarea*ntime+itime].set_title(areas[iarea])
+
+
+
+def call_score(ax,data,area,time,col,style):
+    
+    # Cut time if needed
+    data=data.isel(time=time)
+
+    # Do latitudal slicing of data if requested
+    if area=='global':
+        True
+    elif area=='tr':
+        data=data.sel(lat=slice(20,-20))
+    elif area=='nh':
+        data=data.sel(lat=slice(80,20))
+    elif area=='sh':
+        data=data.sel(lat=slice(-20,-80))
+
+    # Take the areal mean
     dd=data.mean(['lon','lat'])
 
-    print(dd)
+
+    #print(dd)
 
     #ax.plot(dd)
     #dd.plot()
-    xr.plot.line(dd,ax=ax)
+    xr.plot.line(dd,ax=ax,color=col,linestyle=style)
 
 
 

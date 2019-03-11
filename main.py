@@ -34,6 +34,8 @@ exp="eda+sv"
 
 main_dict, pvars, operators = mdata.data_config(exp)
 
+main_dict = mdata.update_main_dict(main_dict)
+
 print("MAIN_DICT:")
 print(main_dict)
 print()
@@ -87,8 +89,8 @@ plot_dict={
     # Define figure physical dimensions (size) and layout (ncol x nrow).
     # If left blank, default settings will used and ncol is defined to equal
     # number of variables to be plotted.
-    'fig_size'   : (8,5),
-    'fig_nrow'   : 1,
+    'fig_size'   : (12,14),
+    'fig_nrow'   : 2,
     'fig_ncol'   : 1,
 
     # Define number of contourf (cf_levs) and contour levels (c_levs), and
@@ -157,33 +159,31 @@ plot_dict = mdata.configure_plot(plot_dict,plot_vars)
 # Construct data paths
 d_path = mdata.create_paths(main_dict)
 
-# Fetch all data
-data_struct = mdata.get_data_layer(d_path,plot_vars,parallel=False)
+getdata=False
+score_fname='crps_fair_T850_Nx.nc'
 
-# Structure data for plotting
-#data_struct = mdata.structure_for_plotting(dd,plot_vars)
+if getdata:
+    # Fetch all data
+    data_struct = mdata.get_data_layer(d_path,plot_vars,parallel=False)
 
-# Deallocate data 
-#dd=[]
+    # Data operations
+    data_struct, nam_list = mdata.structure_for_plotting2(data_struct,main_dict,operators)
 
-data_struct = mdata.structure_for_plotting2(data_struct,main_dict,operators)
+    mdata.save_score_data(score_fname,data_struct,nam_list)
+
+else:
+    data_struct=mdata.get_score_data(score_fname)
 
 #print(data_struct)
-
-#exit()
-
-# Difference between two fields
-#dd_st=[]
-#dd_st.append(data_struct[0]-data_struct[1])
-#data_struct=dd_st
+exit()
 
 # Get whole forecast len if requested
 if plot_dict['fcsteps']=="all":
     plot_dict['fcsteps']=range(0,dd[0].sizes['time'])
 
 # Get data min/max values from the forecast period
-minmax = mdata.get_minmax_layer(plot_dict['minmax'],data_struct)
-
+#minmax = mdata.get_minmax_layer(plot_dict['minmax'],data_struct)
+minmax=[]
 
 # ***********************************************************************
 # PLOT
@@ -236,7 +236,31 @@ with PdfPages(plot_dict['fig_name']+'.pdf') as pdf:
     elif plot_dict['plot_type']=="score":
 
         # Call plotting
-        mplot.plot_scores(plot_dict['fcsteps'],data_struct,plot_dict,plot_vars,minmax)
+        #mplot.plot_scores_crps_vs_fair(plot_dict['fcsteps'],data_struct,plot_dict,plot_vars,minmax)
+
+        # Save the plot to the pdf and open a new pdf page
+        #pdf.savefig()
+        #plt.close()
+
+
+        # Call plotting
+        mplot.plot_scores3(plot_dict['fcsteps'],data_struct[0:10:2],plot_dict,plot_vars,minmax)
+
+        # Save the plot to the pdf and open a new pdf page
+        pdf.savefig()
+        plt.close()
+
+
+        # Call plotting
+        mplot.plot_scores3(plot_dict['fcsteps'],data_struct[1:10:2],plot_dict,plot_vars,minmax)
+
+        # Save the plot to the pdf and open a new pdf page
+        pdf.savefig()
+        plt.close()
+
+
+        # Call plotting
+        mplot.plot_scores2(plot_dict['fcsteps'],data_struct,plot_dict,plot_vars,minmax)
 
         # Save the plot to the pdf and open a new pdf page
         pdf.savefig()

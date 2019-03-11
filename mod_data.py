@@ -3,6 +3,7 @@ from __future__ import print_function
 import numpy as np
 import xarray as xr
 import cartopy.crs as ccrs
+from datetime import datetime,timedelta
 
 import configparser
 from configparser import SafeConfigParser
@@ -22,7 +23,7 @@ def update_main_dict(main_dict):
             if typ!='ensmemb':
                 types.append(typ)
             else:
-                for imem in range(1,sub_dict['nmem']):
+                for imem in range(1,int(sub_dict['nmem'][0])):
                     imem=("{:03d}".format(imem))
                     types.append("p"+imem)
         
@@ -61,29 +62,59 @@ def data_config(name):
 
 
 def parse_data_dict(mydict):
-    # Form a dictionary similar to what the old main_dict was doing.
-    # Parse comma-separated values from the dictionary
+    "Form a dictionary similar to what the old main_dict was doing.\
+     Parse comma-separated values from the dictionary"
 
     main_dict=[]
     exp=mydict['DATA']
     an=mydict['AN']
 
     # Read only from DATA part
-    for item in exp:
-        sub_dict={s:exp[s].split(',') for s in exp}
+    sub_dict={s:exp[s].split(',') for s in exp}
+
+    # If dates are given by keywords, generate the wanted dates
+    sub_dict=parse_dates_dict(sub_dict)
             
+    # Append to main
     main_dict.append(sub_dict)
 
 
     # Add analysis if defined
     if an:
-        for item in an:
-            sub_dict={s:an[s].split(',') for s in an}
+        sub_dict={s:an[s].split(',') for s in an}
         
+        # If dates are given by keywords, generate the wanted dates
+        sub_dict=parse_dates_dict(sub_dict)
+
+        # Append to main
         main_dict.append(sub_dict)
 
 
     return main_dict
+
+
+
+def parse_dates_dict(sub_dict):
+    "Generate date list if keywords 'to' and 'by' are defined"
+
+    if sub_dict['dates'][0].split('/')[1]=='to':
+
+        dates=sub_dict['dates'][0].split('/')
+
+        print("Generate date list:")
+        dd  = datetime.strptime(dates[0], "%Y%m%d%H")
+        dt1 = datetime.strptime(dates[2], "%Y%m%d%H")
+
+        ddates=[]
+        while dd <= dt1:
+            ddates.append(dd.strftime("%Y%m%d%H"))
+            dd = dd + timedelta(days=int(dates[4]))
+
+        print(ddates)
+
+        sub_dict['dates']=ddates
+
+    return sub_dict
 
 
 
@@ -106,6 +137,7 @@ def parse_vars_dict(mydict):
     return vari
 
 
+
 def parse_oper_dict(mydict):
     # Return data operators as an array
 
@@ -114,11 +146,17 @@ def parse_oper_dict(mydict):
         oper.append(mydict['scores'][item].split(','))
 
     # Change data source numbers to integers
-    for ioper in range(0,len(oper)):        
-        oper[ioper][1]=int(oper[ioper][1])
-        oper[ioper][2]=int(oper[ioper][2])
+    for ioper in range(0,len(oper)): 
+        for i in [1,2]:
+            try:
+                int(oper[ioper][i])
+            except ValueError:
+                temp=oper[ioper][i].split('/')[0:5:2]
+                temp=[int(s) for s in temp]
+                oper[ioper][i]=range(temp[0],temp[1],temp[2])
+            else:
+                oper[ioper][i]=int(oper[ioper][i])
     
-
     return oper
 
 
@@ -344,33 +382,36 @@ def get_data(data_path,plot_vars):
         # Change variable name to ecmwf-gribtable one
         data_reduced.name=item
         
-        # Change variable names to more understandable form
-        if 1==0:
-        #for item in ds.data_vars:
-            if item=='var129': data.rename({'var129': 'Z'},inplace=True)
-            if item=='var130': data.rename({'var130': 'T'},inplace=True)
-            if item=='var131': data.rename({'var131': 'U'},inplace=True)
-            if item=='var132': data.rename({'var132': 'V'},inplace=True)
-            if item=='var133': data.rename({'var133': 'Q'},inplace=True)
-            if item=='var138': data.rename({'var138': 'VO'},inplace=True)
-            if item=='var155': data.rename({'var155': 'D'},inplace=True)
-            
-            if item=='var28': data.rename({'var28': '10m gust (3h)'},inplace=True)
-            if item=='var29': data.rename({'var29': '10m gust (inst)'},inplace=True)
-            if item=='var44': data.rename({'var44': 'CAPES'},inplace=True)
-            if item=='var59': data.rename({'var59': 'CAPE'},inplace=True)
-            if item=='var136': data.rename({'var136': 'TCW'},inplace=True)
-            if item=='var151': data.rename({'var151': 'MSL'},inplace=True)
-            if item=='var164': data.rename({'var164': 'TCC'},inplace=True)
-            if item=='var165': data.rename({'var165': 'U10M'},inplace=True)
-            if item=='var166': data.rename({'var166': 'V10M'},inplace=True)
-            if item=='var167': data.rename({'var167': 'T2M'},inplace=True)
-            if item=='var168': data.rename({'var168': 'D2M'},inplace=True)
-            if item=='var228': data.rename({'var228': 'TP'},inplace=True)
-            if item=='var255': data.rename({'var255': 'W10M'},inplace=True)
         
         return data_reduced
 
+
+
+def save_score_data(dname,data_struct,nam_list):
+
+    idata=0
+    first=True
+    for data in data_struct:
+        data=data.rename(nam_list[idata])
+        if first:
+            data.to_netcdf(dname,mode='w')
+            first=False
+        else:
+            data.to_netcdf(dname,mode='a')
+
+        idata+=1
+
+
+
+def get_score_data(dname):
+
+    data_struct=[]
+    with xr.open_dataset(dname) as ds:
+        
+        for item in ds:
+            data_struct.append(ds[item])
+    
+    return data_struct
 
 
 
@@ -390,20 +431,21 @@ def structure_for_plotting2(data,main_dict,operators):
     for dd in data:
         dd.coords['time'] = range(0,241,6)
 
+    print()
+
+    # Construct name list of operator end results
+    nam_list=[]
+    nam_ind=0
+
     # Unroll operators
     for operator in operators:
-        
-        # Check from which element to start reading the data
-        index=[]
-        for ii in [1,2]:
-            ipos=operator[ii]
-            if ipos == -1:
-                ipos = ndata - N
-            else:
-                ipos*=N
-            index.append(ipos)
 
-        #print(N,ndata,index)
+        print("PROCESSING: "+str(operator))
+        
+        index=get_index(N,ndata,operator)
+        print(" Number of dates",N)
+        print(" Number of data sources",ndata)
+        print(" Constructed indexes",index)
 
         # RMSE
         if operator[0]=='rmse':
@@ -413,8 +455,102 @@ def structure_for_plotting2(data,main_dict,operators):
         if operator[0]=='spread':
             data_struct.append(calc_spread(data,main_dict,index))
 
+        # CRPS
+        if operator[0]=='crps':
+            crps,fair,crps1,crps2a,crps2b=calc_crps(data,main_dict,index)
+            data_struct.append(crps)
+            data_struct.append(fair)
+            #data_struct.append(crps1)
+            #data_struct.append(crps2a)
+            #data_struct.append(crps2b)
 
-    return data_struct
+            nam_list.append("crps"+str(nam_ind))
+            nam_list.append("fair"+str(nam_ind))
+            nam_ind+=1
+
+    return data_struct, nam_list
+
+
+
+def get_index(N,ndata,operator):
+    "Check from which element to start reading the data"
+
+    index=[]
+
+    for ii in [1,2]:
+        try:
+            operator[ii][0]
+        except TypeError:
+
+            ipos=operator[ii]
+            if ipos == -1:
+                ipos = ndata - N
+            else:
+                ipos*=N
+
+            index.append(ipos)
+
+        else:
+            for ipos in operator[ii]:
+
+                if ipos == -1:
+                    ipos = ndata - N
+                else:
+                    ipos*=N
+
+                index.append(ipos)
+
+    return index
+
+
+
+def calc_crps(data,main_dict,index):
+    "Calculate RMSE of data1 and data2 over N dates"
+
+    # Get number of dates
+    N = len(main_dict[0]['dates'])
+
+    # Loop over dates
+    crps1=0.
+    crps2=0.
+
+    idate=0
+    for date in main_dict[0]['dates']:
+        
+        # i1 should always be AN
+        i1=index[0]+idate
+
+        # Loop over ensemble members
+        for imem in range(1,len(index)):
+            i2=index[imem]+idate
+
+            print(i1,i2,end='\r')
+            # Distance to observations
+            crps1 = crps1 + np.abs(data[i1]-data[i2])
+
+            # Spread component
+            for imem2 in range(1,len(index)):
+                i3=index[imem2]+idate
+                # Skip calculations with self
+                if i3 != i2:
+                    print(i1,i2,i3,end='\r')
+                    crps2 = crps2 + np.abs(data[i2]-data[i3])
+
+        idate+=1
+
+    M=len(index)-1
+    print(N,M)
+    crps1 = crps1/M/N
+    crps2a = crps2/(2*M**2)/N
+    crps2b = crps2/(2*M*(M-1))/N
+    
+
+    crps = crps1 - crps2a
+
+    fair = crps1 - crps2b
+
+    return crps,fair,crps1,crps2a,crps2b
+
 
 
 def calc_spread(data,main_dict,index):
@@ -429,8 +565,10 @@ def calc_spread(data,main_dict,index):
     for date in main_dict[0]['dates']:
         
         i1=index[0]+idate
+        print(i1)
 
         spread = spread + data[i1]
+
 
         idate+=1
 
@@ -453,6 +591,7 @@ def calc_rmse(data,main_dict,index):
         
         i1=index[0]+idate
         i2=index[1]+idate
+        print(i1,i2)
 
         rmse = rmse + np.square(data[i1]-data[i2])
 
@@ -466,6 +605,7 @@ def calc_rmse(data,main_dict,index):
     rmse = np.sqrt(rmse/N)
 
     return rmse
+
 
 
 def structure_for_plotting(dd,plot_vars):
