@@ -32,22 +32,12 @@ reload(mtrack)
 
 exp="eda+sv"
 
-main_dict, pvars, operators = mdata.data_config(exp)
+main_dict, pvars, operators, savescore = mdata.data_config(exp)
 
-main_dict = mdata.update_main_dict(main_dict)
-
-print("MAIN_DICT:")
-print(main_dict)
-print()
-
-print("PVARS:")
-print(pvars)
-print()
-
-print("OPERATORS:")
-print(operators)
-print()
-
+print("\nMAIN_DICT:","\n",main_dict)
+print("\nPVARS:","\n",pvars)
+print("\nOPERATORS:","\n",operators)
+print("\nSCORE SAVING:","\n",savescore,"\n")
 #exit()
 
 # ***********************************************************************
@@ -145,6 +135,10 @@ plot_dict={
     'fig_features'  : True,
     }
 
+# Get whole forecast len if requested
+if plot_dict['fcsteps']=="all":
+    plot_dict['fcsteps']=range(0,dd[0].sizes['time'])
+
 
 # ***********************************************************************
 # GET DATA
@@ -159,27 +153,13 @@ plot_dict = mdata.configure_plot(plot_dict,plot_vars)
 # Construct data paths
 d_path = mdata.create_paths(main_dict)
 
-getdata=False
-score_fname='crps_fair_T850_Nx.nc'
-
-if getdata:
-    # Fetch all data
-    data_struct = mdata.get_data_layer(d_path,plot_vars,parallel=False)
-
-    # Data operations
-    data_struct, nam_list = mdata.structure_for_plotting2(data_struct,main_dict,operators)
-
-    mdata.save_score_data(score_fname,data_struct,nam_list)
-
-else:
-    data_struct=mdata.get_score_data(score_fname)
+# Fetch data
+data_struct = mdata.get_master(d_path,plot_vars,main_dict,operators,\
+                               savescore,parallel=False)
 
 #print(data_struct)
-exit()
-
-# Get whole forecast len if requested
-if plot_dict['fcsteps']=="all":
-    plot_dict['fcsteps']=range(0,dd[0].sizes['time'])
+#print(len(data_struct))
+#exit()
 
 # Get data min/max values from the forecast period
 #minmax = mdata.get_minmax_layer(plot_dict['minmax'],data_struct)

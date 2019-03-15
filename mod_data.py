@@ -56,8 +56,85 @@ def data_config(name):
     main_dict = parse_data_dict(my_config_parser_dict)
     pvars     = parse_vars_dict(my_config_parser_dict)
     operators = parse_oper_dict(my_config_parser_dict)
+    savescore = parse_save_dict(my_config_parser_dict)
 
-    return main_dict,pvars,operators
+    # Unroll possible keywords in main_dict
+    main_dict = update_main_dict(main_dict)
+    
+    savescore['fnames']=save_score_names(main_dict,operators,pvars,savescore)
+
+    return main_dict,pvars,operators,savescore
+
+
+
+def save_score_names(main_dict,operators,pvars,savescore):
+    "Construct file names for both saving and opening operations"
+
+    fname=[]
+    if savescore['save_scores'] or savescore['load_scores']:
+        # Loop over experiment short names
+        for exp in main_dict[0]['snames']:
+            
+            # Loop over skill score operators
+            for operator in operators:
+                otype=operator[0]
+                N=len(operator[2])
+
+                # Loop over dates
+                for date in main_dict[0]['dates']:
+
+                    # Loop over variables
+                    for var in pvars:
+                        vtype=var[0]
+                        lev=var[1]
+
+                        fname.append(exp+"_"+date+"_"+otype+"_"+"N"+str(N)+\
+                                     "_"+vtype+str(lev)+".nc")
+
+    try:
+        savescore['fnames']
+    except KeyError:
+        pass
+    else:
+        if savescore['fnames']!='default':
+            fname=savescore['fnames']
+
+    return fname
+
+
+
+def parse_save_dict(mydict):
+    "Return switches as python logicals"
+    
+    conf=mydict['save_data']
+
+    savescore={}
+
+    for s in conf:
+        try:
+            eval(conf[s])
+        except NameError:
+            savescore[s]=conf[s]
+        except SyntaxError:
+            savescore[s]=conf[s]
+        else:
+            savescore[s]=eval(conf[s])
+
+    try:
+        savescore['load_scores']
+    except KeyError:
+        savescore['load_scores']=False
+
+    try:
+        savescore['save_scores']
+    except KeyError:
+        savescore['save_scores']=False
+        
+    if savescore['load_scores']:
+        savescore['save_scores']=False
+
+
+    return savescore
 
 
 
@@ -158,6 +235,7 @@ def parse_oper_dict(mydict):
                 oper[ioper][i]=int(oper[ioper][i])
     
     return oper
+
 
 
 def create_vars(pvars,main_dict,plot_dict):
@@ -313,6 +391,70 @@ def create_paths(main_dict):
 
 
 
+def get_master(d_path,plot_vars,main_dict,operators,savescore,parallel=False):
+    "Either open raw nc-files for reading or fetch pre-calculated scores"
+
+    # Open raw variable fields and do skill score calculations if requested
+    #
+    if not savescore['load_scores']:
+        # Fetch all data
+        data_struct = get_data_layer(d_path,plot_vars,parallel=parallel)
+
+        # Data operations
+        data_struct = structure_for_plotting2(data_struct,main_dict,operators,savescore)
+
+
+    # OR load pre-calculated skill score fields
+    #
+    else:
+        data_struct=[]
+        for fname in savescore['fnames']:
+            data_struct.append(get_score_data(fname,savescore['fpath']))
+
+
+    # Do temporal averaging if requested
+    data_struct=time_average(data_struct,main_dict,operators)
+
+    return data_struct
+    
+
+
+def time_average(data_struct,main_dict,operators):
+
+    nexp=len(main_dict[0]['exps'])
+    noper=len(operators[0])
+    ndates=len(main_dict[0]['dates'])
+
+    dd=[]
+
+    iexp=0
+    for exp in main_dict[0]['exps']:
+
+        ioper=0
+        for operator in operators:
+
+            # Loop over scores
+            for iscore in [0,1]:
+                idate=0
+                idd=0
+
+                for date in main_dict[0]['dates']:
+
+                    idd = idd + data_struct[noper*iexp + ndates*ioper + idate][iscore]
+
+                    idate+=1
+
+                idd=idd/ndates
+            
+                dd.append(idd)
+
+            ioper+=1
+        iexp+=1
+
+    return dd
+
+
+
 def get_data_layer(pnames,plot_vars,parallel=True):
     "Controls parallel pool or does a serial fetching of data"
 
@@ -387,26 +529,26 @@ def get_data(data_path,plot_vars):
 
 
 
-def save_score_data(dname,data_struct,nam_list):
+def save_score_data(dname,fpath,data_struct,nam_list):
 
     idata=0
     first=True
     for data in data_struct:
         data=data.rename(nam_list[idata])
         if first:
-            data.to_netcdf(dname,mode='w')
+            data.to_netcdf(fpath+dname,mode='w')
             first=False
         else:
-            data.to_netcdf(dname,mode='a')
+            data.to_netcdf(fpath+dname,mode='a')
 
         idata+=1
 
 
 
-def get_score_data(dname):
+def get_score_data(dname,fpath):
 
     data_struct=[]
-    with xr.open_dataset(dname) as ds:
+    with xr.open_dataset(fpath+dname) as ds:
         
         for item in ds:
             data_struct.append(ds[item])
@@ -415,7 +557,7 @@ def get_score_data(dname):
 
 
 
-def structure_for_plotting2(data,main_dict,operators):
+def structure_for_plotting2(data,main_dict,operators,savescore):
     "Unroll data into plottable form"
 
     data_struct=[]
@@ -431,51 +573,72 @@ def structure_for_plotting2(data,main_dict,operators):
     for dd in data:
         dd.coords['time'] = range(0,241,6)
 
-    print()
-
-    # Construct name list of operator end results
-    nam_list=[]
+    # Initialize name indexing
     nam_ind=0
 
-    # Unroll operators
-    for operator in operators:
+    # Number of experiments
+    nexp=len(main_dict[0]['exps'])
 
-        print("PROCESSING: "+str(operator))
+    iexp=0
+    # Loop over experiments
+    for exp in main_dict[0]['exps']:
+
+        # Unroll operators
+        for operator in operators:
+
+            print("\nPROCESSING: "+exp+" "+str(operator))
         
-        index=get_index(N,ndata,operator)
-        print(" Number of dates",N)
-        print(" Number of data sources",ndata)
-        print(" Constructed indexes",index)
+            index=get_index(N,ndata,operator,nexp,iexp)
+            print(" Number of dates",N)
+            print(" Number of data sources",ndata)
 
-        # RMSE
-        if operator[0]=='rmse':
-            data_struct.append(calc_rmse(data,main_dict,index))
+            for date in main_dict[0]['dates']:
+                print("  Date is ",date)
+                print("  Constructed indexes",index)
 
-        # SPREAD
-        if operator[0]=='spread':
-            data_struct.append(calc_spread(data,main_dict,index))
+                # RMSE
+                if operator[0]=='rmse':
+                    data_struct.append(calc_rmse(data,main_dict,index))
 
-        # CRPS
-        if operator[0]=='crps':
-            crps,fair,crps1,crps2a,crps2b=calc_crps(data,main_dict,index)
-            data_struct.append(crps)
-            data_struct.append(fair)
-            #data_struct.append(crps1)
-            #data_struct.append(crps2a)
-            #data_struct.append(crps2b)
+                # SPREAD
+                if operator[0]=='spread':
+                    data_struct.append(calc_spread(data,main_dict,index))
 
-            nam_list.append("crps"+str(nam_ind))
-            nam_list.append("fair"+str(nam_ind))
-            nam_ind+=1
+                # CRPS
+                if operator[0]=='crps':
+                    crps,fair,crps1,crps2a,crps2b=calc_crps(data,index)
 
-    return data_struct, nam_list
+                    tmp=[crps,fair,crps1,crps2a,crps2b]
+
+                    if savescore['fnames']:
+                        print("  Save to:",savescore['fpath'],\
+                                  savescore['fnames'][nam_ind],"\n")
+
+                        save_score_data(savescore['fnames'][nam_ind],savescore['fpath'],\
+                                        [ crps,  fair,  crps1,  crps2a, crps2b],\
+                                        ['crps','fair','crps1','crps2','crsp2b'])
+
+                data_struct.append(tmp)
+
+                # Increment index list
+                index=[x+1 for x in index]
+
+                nam_ind+=1
+
+        iexp+=1
+
+    return data_struct
 
 
 
-def get_index(N,ndata,operator):
+def get_index(N,ndata,operator,nexp,iexp):
     "Check from which element to start reading the data"
 
     index=[]
+
+    # Increment experiment index as total opened data sources minus
+    # length of analysis fields divided by number of exps
+    iexp=int((ndata-N)/nexp)*iexp
 
     for ii in [1,2]:
         try:
@@ -486,7 +649,7 @@ def get_index(N,ndata,operator):
             if ipos == -1:
                 ipos = ndata - N
             else:
-                ipos*=N
+                ipos=ipos*N + iexp
 
             index.append(ipos)
 
@@ -496,7 +659,7 @@ def get_index(N,ndata,operator):
                 if ipos == -1:
                     ipos = ndata - N
                 else:
-                    ipos*=N
+                    ipos=ipos*N + iexp
 
                 index.append(ipos)
 
@@ -504,46 +667,36 @@ def get_index(N,ndata,operator):
 
 
 
-def calc_crps(data,main_dict,index):
+def calc_crps(data,index):
     "Calculate RMSE of data1 and data2 over N dates"
 
-    # Get number of dates
-    N = len(main_dict[0]['dates'])
-
-    # Loop over dates
     crps1=0.
     crps2=0.
-
-    idate=0
-    for date in main_dict[0]['dates']:
         
-        # i1 should always be AN
-        i1=index[0]+idate
+    # i1 should always be AN
+    i1=index[0]
 
-        # Loop over ensemble members
-        for imem in range(1,len(index)):
-            i2=index[imem]+idate
+    # Loop over ensemble members
+    for imem in range(1,len(index)):
+        i2=index[imem]
 
-            print(i1,i2,end='\r')
-            # Distance to observations
-            crps1 = crps1 + np.abs(data[i1]-data[i2])
+        # Distance to observations
+        crps1 = crps1 + np.abs(data[i1]-data[i2])
 
-            # Spread component
-            for imem2 in range(1,len(index)):
-                i3=index[imem2]+idate
-                # Skip calculations with self
-                if i3 != i2:
-                    print(i1,i2,i3,end='\r')
-                    crps2 = crps2 + np.abs(data[i2]-data[i3])
-
-        idate+=1
+        # Spread component
+        for imem2 in range(1,len(index)):
+            i3=index[imem2]
+            # Skip calculations with self
+            if i3 != i2:
+                print("  Processing sources: ",i1,"   ",i2,"   ",i3,end='\r')
+                crps2 = crps2 + np.abs(data[i2]-data[i3])
 
     M=len(index)-1
-    print(N,M)
-    crps1 = crps1/M/N
-    crps2a = crps2/(2*M**2)/N
-    crps2b = crps2/(2*M*(M-1))/N
-    
+    crps1 = crps1/M
+    crps2a = crps2/(2*M**2)
+    crps2b = crps2/(2*M*(M-1))
+
+    print()
 
     crps = crps1 - crps2a
 

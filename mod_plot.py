@@ -198,23 +198,37 @@ def plot_scores3(time,data_struct,plot_dict,plot_vars,minmax):
 
 
 def call_score(ax,data,area,time,col,style):
-    
+
     # Cut time if needed
     data=data.isel(time=time)
+
+    # Check are latitudes rolling from North to South or other way
+    sign=(data.coords['lat'].values[0]-data.coords['lat'].values[1])
 
     # Do latitudal slicing of data if requested
     if area=='global':
         True
     elif area=='tr':
-        data=data.sel(lat=slice(20,-20))
+        data=data.sel(lat=slice(sign*20,-20*sign))
     elif area=='nh':
-        data=data.sel(lat=slice(80,20))
+        if sign==-1:
+            lat1=20
+            lat2=80
+        else:
+            lat1=80
+            lat2=20
+        data=data.sel(lat=slice(lat1,lat2))
     elif area=='sh':
-        data=data.sel(lat=slice(-20,-80))
+        if sign==-1:
+            lat1=-80
+            lat2=-20
+        else:
+            lat1=-20
+            lat2=-80
+        data=data.sel(lat=slice(lat1,lat2))
 
     # Take the areal mean
     dd=data.mean(['lon','lat'])
-
 
     #print(dd)
 
