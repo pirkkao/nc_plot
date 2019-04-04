@@ -2,392 +2,17 @@
 from __future__ import print_function
 import numpy as np
 import xarray as xr
-import cartopy.crs as ccrs
-from datetime import datetime,timedelta
+import multiprocessing as mp
+import itertools
+import os
 
-import configparser
-from configparser import SafeConfigParser
+from functools import partial
+from itertools import repeat
+
+# For debugging/performance purposes
+import timeit
 
 from mod_plot import get_varname
-
-def update_main_dict(main_dict):
-    "Update main_dict for an ensemble"
-
-    tmp_dict=[]
-    idata=0
-    for sub_dict in main_dict:
-
-        types=[]
-        for typ in sub_dict['types']:
-
-            if typ!='ensmemb':
-                types.append(typ)
-            else:
-                for imem in range(1,int(sub_dict['nmem'][0])):
-                    imem=("{:03d}".format(imem))
-                    types.append("p"+imem)
-        
-        tmp_dict.append(sub_dict)
-        tmp_dict[idata].update({
-            'types' : types,
-            })
-
-        idata+=1
-
-    return tmp_dict
-
-
-
-def data_config(name):
-
-    # Read in configparser configuration file
-    parser = SafeConfigParser()
-    parser.read("configs/data."+name)
-
-    #for section in parser.sections():        
-    #    for name, value in parser.items(section):
-    #        print(section, name, value)
-
-
-    # Return as a dictionary for further use
-    my_config_parser_dict = {s:dict(parser.items(s)) for s in parser.sections()}
-
-    # Return sub variables for further use
-    main_dict = parse_data_dict(my_config_parser_dict)
-    pvars     = parse_vars_dict(my_config_parser_dict)
-    operators = parse_oper_dict(my_config_parser_dict)
-    savescore = parse_save_dict(my_config_parser_dict)
-
-    # Unroll possible keywords in main_dict
-    main_dict = update_main_dict(main_dict)
-    
-    savescore['fnames']=save_score_names(main_dict,operators,pvars,savescore)
-
-    return main_dict,pvars,operators,savescore
-
-
-
-def save_score_names(main_dict,operators,pvars,savescore):
-    "Construct file names for both saving and opening operations"
-
-    fname=[]
-    if savescore['save_scores'] or savescore['load_scores']:
-        # Loop over experiment short names
-        for exp in main_dict[0]['snames']:
-            
-            # Loop over skill score operators
-            for operator in operators:
-                otype=operator[0]
-                N=len(operator[2])
-
-                # Loop over dates
-                for date in main_dict[0]['dates']:
-
-                    # Loop over variables
-                    for var in pvars:
-                        vtype=var[0]
-                        lev=var[1]
-
-                        fname.append(exp+"_"+date+"_"+otype+"_"+"N"+str(N)+\
-                                     "_"+vtype+str(lev)+".nc")
-
-    try:
-        savescore['fnames']
-    except KeyError:
-        pass
-    else:
-        if savescore['fnames']!='default':
-            fname=savescore['fnames']
-
-    return fname
-
-
-
-def parse_save_dict(mydict):
-    "Return switches as python logicals"
-    
-    conf=mydict['save_data']
-
-    savescore={}
-
-    for s in conf:
-        try:
-            eval(conf[s])
-        except NameError:
-            savescore[s]=conf[s]
-        except SyntaxError:
-            savescore[s]=conf[s]
-        else:
-            savescore[s]=eval(conf[s])
-
-    try:
-        savescore['load_scores']
-    except KeyError:
-        savescore['load_scores']=False
-
-    try:
-        savescore['save_scores']
-    except KeyError:
-        savescore['save_scores']=False
-        
-    if savescore['load_scores']:
-        savescore['save_scores']=False
-
-
-    return savescore
-
-
-
-def parse_data_dict(mydict):
-    "Form a dictionary similar to what the old main_dict was doing.\
-     Parse comma-separated values from the dictionary"
-
-    main_dict=[]
-    exp=mydict['DATA']
-    an=mydict['AN']
-
-    # Read only from DATA part
-    sub_dict={s:exp[s].split(',') for s in exp}
-
-    # If dates are given by keywords, generate the wanted dates
-    sub_dict=parse_dates_dict(sub_dict)
-            
-    # Append to main
-    main_dict.append(sub_dict)
-
-
-    # Add analysis if defined
-    if an:
-        sub_dict={s:an[s].split(',') for s in an}
-        
-        # If dates are given by keywords, generate the wanted dates
-        sub_dict=parse_dates_dict(sub_dict)
-
-        # Append to main
-        main_dict.append(sub_dict)
-
-
-    return main_dict
-
-
-
-def parse_dates_dict(sub_dict):
-    "Generate date list if keywords 'to' and 'by' are defined"
-
-    if sub_dict['dates'][0].split('/')[1]=='to':
-
-        dates=sub_dict['dates'][0].split('/')
-
-        print("Generate date list:")
-        dd  = datetime.strptime(dates[0], "%Y%m%d%H")
-        dt1 = datetime.strptime(dates[2], "%Y%m%d%H")
-
-        ddates=[]
-        while dd <= dt1:
-            ddates.append(dd.strftime("%Y%m%d%H"))
-            dd = dd + timedelta(days=int(dates[4]))
-
-        print(ddates)
-
-        sub_dict['dates']=ddates
-
-    return sub_dict
-
-
-
-def parse_vars_dict(mydict):
-    # Return variable fields as an array
-
-    vari=[]
-    for item in mydict['variables']:
-        vari.append(mydict['variables'][item].split(','))
-    
-    # Change level field into integer number
-    for ivar in range(0,len(vari)):
-        try:
-            vari[ivar][1]
-        except IndexError:
-            pass
-        else:
-            vari[ivar][1]=int(vari[ivar][1])
-
-    return vari
-
-
-
-def parse_oper_dict(mydict):
-    # Return data operators as an array
-
-    oper=[]
-    for item in mydict['scores']:
-        oper.append(mydict['scores'][item].split(','))
-
-    # Change data source numbers to integers
-    for ioper in range(0,len(oper)): 
-        for i in [1,2]:
-            try:
-                int(oper[ioper][i])
-            except ValueError:
-                temp=oper[ioper][i].split('/')[0:5:2]
-                temp=[int(s) for s in temp]
-                oper[ioper][i]=range(temp[0],temp[1],temp[2])
-            else:
-                oper[ioper][i]=int(oper[ioper][i])
-    
-    return oper
-
-
-
-def create_vars(pvars,main_dict,plot_dict):
-    "Create a dictionary for variables to be plotted"
-
-    ptype=plot_dict['plot_type']
-    plegend=plot_dict['fig_legend']
-
-    # Get "length" of main_dict (it can be either appended or
-    # contain multiple exps, dates and types).
-    # So, unroll all.
-    md_sum=0
-    md_dates=[]
-    md_types=[]
-    md_exps=[]
-    typ_ens=[]
-    for sub_dict in main_dict:
-        for exp in sub_dict['exps']:
-            for typ in sub_dict['types']:
-                for date in sub_dict['dates']:
-                    md_sum+=1
-                    md_dates.append(date)
-                    md_types.append(typ)
-                    md_exps.append(exp)
-
-                    if typ=="ensstd" or typ=="an_test":
-                        typ_ens.append("ensstd")
-                    elif typ=="ensmean":
-                        typ_ens.append("ensmean")
-                    elif typ=="ctrl" or typ=="p000":
-                        typ_ens.append("ctrl")
-                    else:
-                        typ_ens.append("member")
-
-    if (len(pvars) < md_sum) and len(pvars)>1:
-        print("\nNOTE! There's mismatch between variables to be plotted \
-and opened data files. Not all data sources will be plotted.\n")
-
-    # Check is plegend a suggestion to form a legend list
-    if plegend=='type':
-        plegend=[]
-        for idata in range(0,md_sum):
-            plegend.append(str(md_types[idata]))
-
-    elif plegend=='date':
-        plegend=[]
-        for idata in range(0,md_sum):
-            plegend.append(str(md_dates[idata]))
-
-    elif plegend=='exp':
-        plegend=[]
-        for idata in range(0,md_sum):
-            plegend.append(str(md_exps[idata]))
-
-    elif plegend=='datetype':
-        plegend=[]
-        for idata in range(0,md_sum):
-            plegend.append(str(md_dates[idata])+" "+str(md_types[idata]))
-
-    elif plegend=='expdatetype':
-        plegend=[]
-        for idata in range(0,md_sum):
-            plegend.append(str(md_exps[idata])+" "+str(md_dates[idata])+" "+str(md_types[idata]))
-
-
-    plot_vars=[]
-
-    # Special treatment for TC track, only MSL needed
-    if ptype=="track":
-        print("\nOverwriting pvars-list.\n")
-        for idata in range(0,md_sum):
-            plot_vars.append({
-                    'vars'  : ["MSL"],
-                    'levs'  : False,
-                    'dates' : md_dates[idata],
-                    'legend': plegend[idata],
-                    'ens'   : typ_ens[idata],
-                    })
-
-    else:
-        idata=0
-        for pvar in pvars:
-            # Check is the variable data on vertical levels
-            if len(pvar)>1:
-                levs=True
-                nlevs=pvar[1]
-            else:
-                levs=False
-                nlevs=[]
-
-            plot_vars.append({
-                        'vars'  : [pvar[0]],
-                        'levs'  : levs,
-                        'nlevs' : [nlevs],
-                        'dates' : md_dates[idata],
-                        'legend': plegend[idata],
-                        'ens'   : typ_ens[idata],
-                        })
-            
-            # Only move the iteration forwards if there are more than one 
-            # data source open
-            if md_sum >1:
-                idata+=1
-
-        # If only one variable is given use it for all data sources
-        if len(pvars)==1:
-            # Start from 1 since plot_vars already contains the 1st dict
-            for idata in range(1,md_sum):
-                plot_vars.append({
-                        'vars'  : [pvar[0]],
-                        'levs'  : levs,
-                        'nlevs' : [nlevs],
-                        'dates' : md_dates[idata],
-                        'legend': plegend[idata],
-                        'ens'   : typ_ens[idata],
-                        })
-                        
-    print()
-    print("DATA CONFIGURATION:")
-    for plv in plot_vars:
-        print(plv)
-    print("")
-
-    return plot_vars
-
-
-
-def create_paths(main_dict):
-    "Unroll dictionary elements to construct data paths"
-
-    d_path=[]
-
-    for sub_dict in main_dict:
-
-        # Unroll dictionary elements
-        exps=sub_dict['exps']
-        dates=sub_dict['dates']
-        fnames=sub_dict['types']
-
-        # Construct file paths
-        nbpath=0
-        for exp in exps:
-
-            basepath=sub_dict['paths'][nbpath]
-            if len(sub_dict['paths'])>1:
-                nbpath+=1
-
-            for fnam in fnames:
-                for date in dates:
-                    d_path.append(basepath+exp+"/"+date+"/"+fnam+".nc")
-
-    return d_path
 
 
 
@@ -417,41 +42,6 @@ def get_master(d_path,plot_vars,main_dict,operators,savescore,parallel=False):
 
     return data_struct
     
-
-
-def time_average(data_struct,main_dict,operators):
-
-    nexp=len(main_dict[0]['exps'])
-    noper=len(operators[0])
-    ndates=len(main_dict[0]['dates'])
-
-    dd=[]
-
-    iexp=0
-    for exp in main_dict[0]['exps']:
-
-        ioper=0
-        for operator in operators:
-
-            # Loop over scores
-            for iscore in [0,1]:
-                idate=0
-                idd=0
-
-                for date in main_dict[0]['dates']:
-
-                    idd = idd + data_struct[noper*iexp + ndates*ioper + idate][iscore]
-
-                    idate+=1
-
-                idd=idd/ndates
-            
-                dd.append(idd)
-
-            ioper+=1
-        iexp+=1
-
-    return dd
 
 
 
@@ -570,8 +160,18 @@ def structure_for_plotting2(data,main_dict,operators,savescore):
 
     # Need to change time axis in order to combine data 
     # from different dates
+    ntimes=len(data[0].coords['time'])
+    idata=0
     for dd in data:
-        dd.coords['time'] = range(0,241,6)
+        # Cut AN if FC length shorter than 10d
+        if len(dd.coords['time'])>ntimes:
+            dd=dd.isel(time=range(0,ntimes))
+            
+        dd.coords['time'] = range(0,6*ntimes-1,6)
+
+        data[idata]=dd
+
+        idata+=1
 
     # Initialize name indexing
     nam_ind=0
@@ -598,25 +198,30 @@ def structure_for_plotting2(data,main_dict,operators,savescore):
 
                 # RMSE
                 if operator[0]=='rmse':
-                    data_struct.append(calc_rmse(data,main_dict,index))
+                    tmp=[]
+                    tmp.append(calc_rmse(data,index))
+                    fields=['rmse']
 
                 # SPREAD
                 if operator[0]=='spread':
-                    data_struct.append(calc_spread(data,main_dict,index))
+                    tmp=[]
+                    tmp.append(calc_spread(data,index))
+                    fields=['spread']
 
                 # CRPS
                 if operator[0]=='crps':
                     crps,fair,crps1,crps2a,crps2b=calc_crps(data,index)
 
                     tmp=[crps,fair,crps1,crps2a,crps2b]
+                    fields=['crps','fair','crps1','crps2','crsp2b']
 
-                    if savescore['fnames']:
-                        print("  Save to:",savescore['fpath'],\
-                                  savescore['fnames'][nam_ind],"\n")
 
-                        save_score_data(savescore['fnames'][nam_ind],savescore['fpath'],\
-                                        [ crps,  fair,  crps1,  crps2a, crps2b],\
-                                        ['crps','fair','crps1','crps2','crsp2b'])
+                if savescore['fnames']:
+                    print("  Save to:",savescore['fpath'],\
+                              savescore['fnames'][nam_ind],"\n")
+
+                    save_score_data(savescore['fnames'][nam_ind],savescore['fpath'],\
+                                        tmp,fields)
 
                 data_struct.append(tmp)
 
@@ -673,28 +278,96 @@ def calc_crps(data,index):
     crps1=0.
     crps2=0.
         
-    # i1 should always be AN
+    # i1 should always be AN!
     i1=index[0]
 
-    # Loop over ensemble members
-    for imem in range(1,len(index)):
-        i2=index[imem]
+    # Performance
+    start_time = timeit.default_timer()
 
-        # Distance to observations
-        crps1 = crps1 + np.abs(data[i1]-data[i2])
+    if False:
+        # Loop over ensemble members
+        for imem in range(1,len(index)):
+            i2=index[imem]
 
-        # Spread component
-        for imem2 in range(1,len(index)):
-            i3=index[imem2]
-            # Skip calculations with self
-            if i3 != i2:
-                print("  Processing sources: ",i1,"   ",i2,"   ",i3,end='\r')
-                crps2 = crps2 + np.abs(data[i2]-data[i3])
+            # Distance to observations
+            crps1 = crps1 + np.abs(data[i1]-data[i2])
+
+            # Spread component
+            for imem2 in range(1,len(index)):
+                i3=index[imem2]
+                # Skip calculations with self
+                if i3 != i2:
+                    crps2 = crps2 + np.abs(data[i2]-data[i3])
+    else:
+        crps1=0.
+        crps2=0.
+
+    # Performance
+    end_time1 = timeit.default_timer() - start_time
+
+    # Performance
+    start_time = timeit.default_timer()
+
+    if True:
+        pool=mp.Pool(processes=ncpus())
+        
+        # Calculate distance to analysis.
+        #
+        # Construct indexes for ens members
+        indexes=[index[x] for x in range(1,len(index))]
+
+        # Fix data and AN on function call
+        func = partial(calc_crps_distance,data,i1)
+
+        # Call map to iterate over ens members
+        crpsA = pool.map(func,indexes)    
+        crpsA = sum(crpsA)
+
+        
+        # Calculate distance between ens members
+        #
+        # Fix data on function call
+        func = partial(calc_crps_distance,data)
+
+        #print(list(itertools.combinations(indexes,2)))
+
+        # Call starmap to iterate over ens members
+        crpsB = pool.starmap(func,itertools.combinations(indexes,2))
+
+        # Combinations is listing only unique combinations (x)
+        # 0  1  2  3  4  5
+        # 1  o  o  o  o  o
+        # 2  x  o  o  o  o
+        # 3  x  x  o  o  o
+        # 4  x  x  x  o  o
+        # 5  x  x  x  x  o
+        #
+        # Since the diagonal values are always 0 and the permuted
+        # elements (1,2) vs (2,1) are exactly the same, we just need
+        # to multiply each crpsB value by 2 to get to the correct
+        # spread score value.
+
+        crpsB = sum(cb*2. for cb in crpsB)
+    else:
+        crpsA=0.
+        crpsB=0.
+
+    # Performance
+    end_time2 = timeit.default_timer() - start_time
+
+
+    print("\ņ\n PERFORMANCE")
+    print(" Time serial",end_time1)
+    print(" Time pool",end_time2)
+
+    print("\n Difference between pool and serial")
+    #print(" CRPS A",round(sum(sum(sum(crps1.values - crpsA.values))),0),round(sum(sum(sum(crps1.values))),0))
+    #print(" CRPS B",round(sum(sum(sum(crps2.values - crpsB.values))),0),round(sum(sum(sum(crps2.values))),0))
 
     M=len(index)-1
-    crps1 = crps1/M
-    crps2a = crps2/(2*M**2)
-    crps2b = crps2/(2*M*(M-1))
+    crps1 = crpsA/M
+    crps2a = crpsB/(2*M**2)
+    crps2b = crpsB/(2*M*(M-1))
 
     print()
 
@@ -705,59 +378,52 @@ def calc_crps(data,index):
     return crps,fair,crps1,crps2a,crps2b
 
 
+def calc_crps_distance(data,i1,i2):
 
-def calc_spread(data,main_dict,index):
-    "Calculate average spread over N dates"
-
-    # Get number of dates
-    N = len(main_dict[0]['dates'])
-
-    # Loop over dates
-    spread=0
-    idate=0
-    for date in main_dict[0]['dates']:
-        
-        i1=index[0]+idate
-        print(i1)
-
-        spread = spread + data[i1]
+    #print(i1,i2)
+    # Distance to observations
+    return np.abs(data[i1]-data[i2])
 
 
-        idate+=1
 
-    spread = spread/N
+def calc_spread(data,index):
+    "Get correct field from the data_struct"
 
-    return spread
+    i1=index[0]
+
+    #spread =  data[i1]
+
+    return data[i1]
     
 
 
-def calc_rmse(data,main_dict,index):
+def calc_rmse(data,index):
     "Calculate RMSE of data1 and data2 over N dates"
 
-    # Get number of dates
-    N = len(main_dict[0]['dates'])
-
-    # Loop over dates
-    rmse=0
-    idate=0
-    for date in main_dict[0]['dates']:
         
-        i1=index[0]+idate
-        i2=index[1]+idate
-        print(i1,i2)
+    i1=index[0]
+    i2=index[1]
 
-        rmse = rmse + np.square(data[i1]-data[i2])
-
-        #print()
-        #print(i1,i2)
-        #print(np.square(data[i1]-data[i2]).mean(['lat','lon']))
-        #print()
-
-        idate+=1
-
-    rmse = np.sqrt(rmse/N)
+    rmse = np.square(data[i1]-data[i2])
+    rmse = np.sqrt(rmse)
 
     return rmse
+
+
+
+def ncpus():
+    "Check are we running with multiple CPUs and act accordingly"
+
+    try:
+        os.environ['SLURM_NTASKS']
+    except KeyError:
+        parallel=1
+    else:
+        parallel=int(os.environ['SLURM_NTASKS'])
+
+    print(" NCPUS:",parallel)
+
+    return parallel
 
 
 
@@ -786,110 +452,6 @@ def structure_for_plotting(dd,plot_vars):
 
     return data_struct
 
-
-
-def configure_plot(plot_dict,plot_vars):
-    "Store default plot settings and change them if requested"
-
-    loc_dict={}
-    loc_dict.update({'fig_proj':ccrs.PlateCarree()})
-
-    # False and None values are the same, need (probably not)
-    # to define False sets here to be included
-    loc_dict.update({'minmax' : ""})
-
-    loc_dict.update({'fig_title' : False})
-    loc_dict.update({'fig_ylabel': False})
-    loc_dict.update({'fig_xlabel': False})
-
-    loc_dict.update({'fig_ens_predef': False})
-    loc_dict.update({'fig_ens_show'  : False})
-    loc_dict.update({'fig_ens_col'   : []})
-    loc_dict.update({'fig_ens_buff'   : []})
-    loc_dict.update({'fig_ens_alpha'  : []})
-
-    loc_dict.update({'fig_obs_track': False})
-    loc_dict.update({'fig_obs_buff':[]})
-    loc_dict.update({'fig_obs_match_time': False})
-
-    loc_dict.update({'fig_features': False})
-
-    # Default figure settings for 2dmap
-    if plot_dict['plot_type']=='2dmap':
-        loc_dict.update({
-                'fig_size'    : (14,8),
-                'fig_cf_levs' : 40,
-                })
-
-    # Default figure settings for mvar
-    if plot_dict['plot_type']=='mvar':
-        loc_dict.update({
-                'fig_size'    : (14,8),
-                'fig_nrow'    : 1,
-                'fig_ncol'    : 1,
-                'fig_cf_levs' : 40,
-                'fig_c_levs'  : 30,
-                'fig_c_col'   : 'k',
-                })
-
-    # Calculate number of columns based on plot_vars length
-    if plot_dict['plot_type']!='mvar':
-        loc_dict.update({
-                'fig_nrow' : len(plot_vars),
-                'fig_ncol' : 1,
-                })
-
-    # Cycle through all possible fields and add them to dict
-    # if not defined
-    for item in [    'fcsteps',\
-                     'fig_name',\
-                     'lonlat',\
-                     'minmax',\
-                     'plot_type',\
-                         
-                     'fig_size',\
-                     'fig_ncol',\
-                     'fig_nrow',\
-                         
-                     'fig_cf_levs',\
-                     'fig_c_levs',\
-                     'fig_c_col',\
-                         
-                     'fig_ens_predef',\
-                     'fig_ens_show',\
-                     'fig_ens_col',\
-                     'fig_ens_buff',\
-                     'fig_ens_alpha',\
-                     'fig_ctrl_col',\
-                     'fig_ensm_col',\
-                         
-                     'fig_legend',\
-                         
-                     'fig_title',\
-                     'fig_ylabel',\
-                     'fig_xlabel',\
-                         
-                     'fig_proj',\
-                         
-                     'fig_obs_track',\
-                     'fig_obs_file',\
-                     'fig_obs_col',\
-                     'fig_obs_buff',\
-                     'fig_obs_match_time',\
-                         
-                     'fig_features']:
-
-
-        # Replace defaults if a value is given in plot_dict
-        try:
-            plot_dict[item]
-        except KeyError:
-            loc_dict.update({item:[]})
-        else:
-            if plot_dict[item]:
-                loc_dict.update({item:plot_dict[item]})
-
-    return loc_dict
 
 
 
@@ -978,3 +540,48 @@ def get_minmax(data_struct):
         minmax[i]=[mins[i],maxs[i]]
 
     return minmax
+
+
+
+def time_average(data_struct,main_dict,operators):
+
+    nexp=len(main_dict[0]['exps'])
+    ndates=len(main_dict[0]['dates'])
+    noper=len(operators)
+
+    dd=[]
+
+    if operators[0][0]=='crps':
+        nscores=2
+    else:
+        nscores=1
+
+    print("\n","CALCULATING TIME MEAN","\n")
+
+    iexp=0
+    for exp in main_dict[0]['exps']:
+
+        ioper=0
+        for operator in operators:
+
+            # Loop over scores
+            for iscore in range(0,nscores):
+                print("Averaging...")
+                idate=0
+                idd=0
+
+                for date in main_dict[0]['dates']:
+
+                    print("INDEX:",ndates*noper*iexp + ndates*ioper + idate,"DATE:",date,"ISCORE:",iscore)
+                    idd = idd + data_struct[ndates*noper*iexp + ndates*ioper + idate][iscore]
+
+                    idate+=1
+
+                idd=idd/ndates
+            
+                dd.append(idd)
+
+            ioper+=1
+        iexp+=1
+
+    return dd

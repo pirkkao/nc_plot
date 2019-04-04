@@ -1,13 +1,13 @@
-#!/usr/bin/python3
+#!/wrk/ollinaho/DONOTREMOVE/taito-conda-envs/plot2/bin/python3
 #
 # This is a simple python script to read in NetCDF data and produce
 # 2D geographical maps of it with cartopy.
 #
 # Modify and play with this as you wish!
 #
-
-import mod_data as mdata
-import mod_plot as mplot
+import mod_setup as msetup
+import mod_data  as mdata
+import mod_plot  as mplot
 import mod_tctrack as mtrack
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
@@ -21,150 +21,61 @@ except NameError:
     except ImportError:
         from imp import reload  # Python 3.0 - 3.3
 
+reload(msetup)
 reload(mdata)
 reload(mplot)
 reload(mtrack)
 
 
 # ***********************************************************************
-# DATA CONFIGURATION
+# SETUP
 # ***********************************************************************
 
-exp="eda+sv"
+exp="sv"
 
-main_dict, pvars, operators, savescore = mdata.data_config(exp)
+main_dict, pvars, operators, savescore, plot_dict2 = msetup.data_config(exp)
 
 print("\nMAIN_DICT:","\n",main_dict)
 print("\nPVARS:","\n",pvars)
 print("\nOPERATORS:","\n",operators)
-print("\nSCORE SAVING:","\n",savescore,"\n")
+print("\nSCORE SAVING:","\n",savescore)
+print("\nPLOTTING:","\n",plot_dict2,"\n")
 #exit()
 
 # ***********************************************************************
-# PLOTTING CONFIGURATION
+# AUTOMATIC CONFIGURATION
 # ***********************************************************************
 
-# Create a configuration dictionary
-#
-# 'fcsteps'    : forecast lengths to be plotted (choose "all"
-#                for plotting all available timesteps)
-#
-# 'fig_name'   : unique identifier for the produced plot 
-#                (.pdf added to this name)
-#
-# 'lonlat'     : area to be plotted 
-#                "global" for global
-#                "" for automatic area choosing according to data
-#                [98.55,129.6,3.13796,23.75884] for an area
-#
-# 'minmax'     : find data min/max values over different forecast lengths
-#                "abs" - get the absolute min/max values from all similar fields
-#                "rel" - get the relative min/max for each individual field
-#                "" - don't calculate min/max values
-#
-# 'plot_type'  : 
-#                "2dmap" - plot a 2D map for each variable and forecast step defined
-#                "mvar"  - plot multimple variables into the same plot,
-#                          1st variable will be made with contour, 2nd with contourf
-#                "track" - plot a simple tropical cyclone track
-#
+# Get plot dict
+plot_dict = msetup.create_plot_dict()
 
-plot_dict={
-    'fcsteps'    : range(5,9), # [10,11,12],(10,21)(20,31)(30,41)
-    'fig_name'   : "testi",
-    'lonlat'     : "global", #[106.,113,6.,16.],#[99.,129.,3.2,23.6][106.,113,6.,16.],
-    'minmax'     : "rel",
-    'plot_type'  : "score",
+# Get variable list
+plot_vars = msetup.create_vars(pvars,main_dict,plot_dict)
 
-    # Define figure physical dimensions (size) and layout (ncol x nrow).
-    # If left blank, default settings will used and ncol is defined to equal
-    # number of variables to be plotted.
-    'fig_size'   : (12,14),
-    'fig_nrow'   : 2,
-    'fig_ncol'   : 1,
+# Update plot_dict
+plot_dict = msetup.configure_plot(plot_dict,plot_vars)
 
-    # Define number of contourf (cf_levs) and contour levels (c_levs), and
-    # colour of contour lines.
-    'fig_cf_levs': 20,
-    'fig_c_levs' : 30,
-    'fig_c_col'  : 'magenta',
-
-    # Track options. 
-    #
-    # 'fig_ens_predef' : Not in use
-    # 'fig_ens_show'   : Show ensemble member tracks with solid lines
-    # 'fig_ens_col'    : Use the same colour (defined here) for all ens members
-    # 'fig_ens_buff'   : Halo size around ens member tracks
-    # 'fig_ens_alpha'  : Alpha (transparency) of ens member halos
-    # 'fig_ctrl_col'   : Colour for control member
-    # 'fig_ensm_col'   : Colour for ensemble mean
-
-    'fig_ens_predef' : False,
-    'fig_ens_show'   : True,
-    'fig_ens_col'    : [],
-    'fig_ens_buff'   : [],
-    'fig_ens_alpha'  : [],
-    'fig_ctrl_col'   : [],
-    'fig_ensm_col'   : 'magenta',
-
-    # Associate a legend name for each variable. Automatically generated options:
-    #    'type'
-    #    'date'
-    #    'exp'
-    #    'datetype'
-    #    'expdatetype'
-    # or ["1","2","3","4"]
-    'fig_legend' :'type',
-
-    # Title, y- and x-labels
-    'fig_title'  : [],
-    'fig_ylabel' : [],
-    'fig_xlabel' : [],
-
-    # Change the cartopy projection
-    'fig_proj'   : [],
-
-    # Change observations used
-    'fig_obs_track'     : False, 
-    'fig_obs_file'      : 'damrey_track.dat',
-    'fig_obs_col'       : 'r',
-    'fig_obs_buff'      : [],
-    'fig_obs_match_time': True,
-
-    # Control plotting of additional map features
-    'fig_features'  : True,
-    }
-
-# Get whole forecast len if requested
-if plot_dict['fcsteps']=="all":
-    plot_dict['fcsteps']=range(0,dd[0].sizes['time'])
+# Include plot_dict2 TEMP SOLUTION?
+plot_dict.update(plot_dict2)
 
 
+# Construct data paths
+d_path = msetup.create_paths(main_dict)
+
+#exit()
 # ***********************************************************************
 # GET DATA
 # ***********************************************************************
-
-# Get variable list
-plot_vars = mdata.create_vars(pvars,main_dict,plot_dict)
-
-# Update plot_dict
-plot_dict = mdata.configure_plot(plot_dict,plot_vars)
-
-# Construct data paths
-d_path = mdata.create_paths(main_dict)
 
 # Fetch data
 data_struct = mdata.get_master(d_path,plot_vars,main_dict,operators,\
                                savescore,parallel=False)
 
-#print(data_struct)
-#print(len(data_struct))
-#exit()
-
 # Get data min/max values from the forecast period
 #minmax = mdata.get_minmax_layer(plot_dict['minmax'],data_struct)
 minmax=[]
 
+exit()
 # ***********************************************************************
 # PLOT
 # ***********************************************************************
@@ -215,33 +126,33 @@ with PdfPages(plot_dict['fig_name']+'.pdf') as pdf:
     # PLOT SCORES
     elif plot_dict['plot_type']=="score":
 
+        # If CRPS divide CRPS and fair-CRPS plots
+        if plot_dict['crps']:
+            data= data_struct[0:-1:2]
+            data2=data_struct[1:len(data_struct):2]
+        else:
+            data= data_struct
+            data2=[]
+
         # Call plotting
-        #mplot.plot_scores_crps_vs_fair(plot_dict['fcsteps'],data_struct,plot_dict,plot_vars,minmax)
+        mplot.plot_scores3(plot_dict['fcsteps'],data,plot_dict,plot_vars,minmax)
+
+        # Save the plot to the pdf and open a new pdf page
+        pdf.savefig()
+        plt.close()
+
+        if data2:
+            # Call plotting
+            mplot.plot_scores3(plot_dict['fcsteps'],data2,plot_dict,plot_vars,minmax)
+
+            # Save the plot to the pdf and open a new pdf page
+            pdf.savefig()
+            plt.close()
+
+
+        # Call plotting
+        #mplot.plot_scores2(plot_dict['fcsteps'],data_struct,plot_dict,plot_vars,minmax)
 
         # Save the plot to the pdf and open a new pdf page
         #pdf.savefig()
         #plt.close()
-
-
-        # Call plotting
-        mplot.plot_scores3(plot_dict['fcsteps'],data_struct[0:10:2],plot_dict,plot_vars,minmax)
-
-        # Save the plot to the pdf and open a new pdf page
-        pdf.savefig()
-        plt.close()
-
-
-        # Call plotting
-        mplot.plot_scores3(plot_dict['fcsteps'],data_struct[1:10:2],plot_dict,plot_vars,minmax)
-
-        # Save the plot to the pdf and open a new pdf page
-        pdf.savefig()
-        plt.close()
-
-
-        # Call plotting
-        mplot.plot_scores2(plot_dict['fcsteps'],data_struct,plot_dict,plot_vars,minmax)
-
-        # Save the plot to the pdf and open a new pdf page
-        pdf.savefig()
-        plt.close()

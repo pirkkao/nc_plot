@@ -119,8 +119,13 @@ def plot_scores2(time,data_struct,plot_dict,plot_vars,minmax):
     print()
     print("CREATING FIGURE")
 
+    areas=['nh','tr','sh']
+    time=[range(0,9),range(9,21),range(21,41)]
+    time=[range(0,5),range(5,11),range(11,21)]
+    ntime=len(time)
+
     # Create a figure
-    fig,ax=plt.subplots(nrows=3,ncols=3,figsize=plot_dict['fig_size'])
+    fig,ax=plt.subplots(nrows=len(areas),ncols=ntime,figsize=plot_dict['fig_size'])
 
     # Fix the axis handle to be simply ax[0]
     ax=fix_ax(ax)
@@ -128,10 +133,6 @@ def plot_scores2(time,data_struct,plot_dict,plot_vars,minmax):
     
     cols=['r','b','g','violet','k']
     styles=['-','--',':','-.','-']
-
-    areas=['nh','tr','sh']
-    time=[range(0,9),range(9,21),range(21,41)]
-    ntime=len(time)
 
     # Loop over FC lead times
     for itime in range(0,ntime):
@@ -162,20 +163,22 @@ def plot_scores3(time,data_struct,plot_dict,plot_vars,minmax):
     print()
     print("CREATING FIGURE")
 
+    areas=plot_dict['areas']
+    time= plot_dict['time']
+    ntime=len(time)
+
     # Create a figure
-    fig,ax=plt.subplots(nrows=3,ncols=3,figsize=plot_dict['fig_size'])
+    fig,ax=plt.subplots(nrows=len(areas),ncols=ntime,figsize=plot_dict['fig_size'])
 
     # Fix the axis handle to be simply ax[0]
     ax=fix_ax(ax)
     #plt.tight_layout()
     
-    cols=['r','b','g','violet','k']
-    styles=['-','--',':','-.','-']
-    names=['N=8','N=10','N=12','N=20','N=50']
+    cols=  plot_dict['cols']
+    styles=plot_dict['styles']
 
-    areas=['nh','tr','sh']
-    time=[range(0,9),range(9,21),range(21,41)]
-    ntime=len(time)
+    legend_cols= plot_dict['legend_cols']
+    legend_names=plot_dict['legend_names']
 
     # Loop over FC lengths
     for itime in range(0,ntime):
@@ -191,7 +194,7 @@ def plot_scores3(time,data_struct,plot_dict,plot_vars,minmax):
                 idata+=1
 
             if itime==0 and iarea==0:
-                plot_legend(cols,names,bbox_loc=(0.3,1.,0,0))
+                plot_legend(legend_cols,legend_names,bbox_loc=(0.3,1.,0,0))
 
             ax[iarea*ntime+itime].set_title(areas[iarea])
 
