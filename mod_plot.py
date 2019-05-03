@@ -12,6 +12,7 @@ from shapely.geometry import Point
 from datetime import datetime,timedelta
 from matplotlib.colors import ListedColormap
 from matplotlib.lines import Line2D as Line
+from matplotlib.backends.backend_pdf import PdfPages
 
 # import from mod_tctrack (change to util?)
 from mod_tctrack import tc_plot
@@ -25,6 +26,86 @@ import sys
 if not sys.warnoptions:
     import warnings
     warnings.simplefilter("ignore")
+
+
+def plot_master(data_struct,plot_dict,plot_vars,minmax):
+
+    # Open a pdf to plot to
+    with PdfPages(plot_dict['fig_name']+'.pdf') as pdf:
+
+        # PLOT 2D MAP
+        if plot_dict['plot_type']=="2dmap":
+
+            # Plot each forecast step into its own pdf page
+            for fcstep in plot_dict['fcsteps']:
+
+                # Call plotting
+                #plot_data(fcstep,data_struct,lonlat=plot_dict['lonlat'],minmax=minmax,plot_vars=plot_vars)
+                plot_data(fcstep,data_struct,plot_dict,plot_vars,minmax)
+
+                # Save the plot to the pdf and open a new pdf page
+                pdf.savefig()
+                plt.close()
+
+
+        # PLOT 2D MAP WITH MULTIPLE VARIABLES
+        if plot_dict['plot_type']=="mvar":
+
+            # Plot each forecast step into its own pdf page
+            for fcstep in plot_dict['fcsteps']:
+
+                # Call plotting
+                plot_mvar(fcstep,data_struct,plot_dict,plot_vars,minmax)
+
+                # Save the plot to the pdf and open a new pdf page
+                pdf.savefig()
+                plt.close()
+
+
+        # PLOT TC TRACK
+        elif plot_dict['plot_type']=="track":
+
+            # Call plotting
+            mtrack.plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars)
+
+            # Save the plot to the pdf and open a new pdf page
+            pdf.savefig()
+            plt.close()
+
+
+        # PLOT SCORES
+        elif plot_dict['plot_type']=="score":
+
+            # If CRPS divide CRPS and fair-CRPS plots
+            if plot_dict['crps']:
+                data= data_struct[0:-1:2]
+                data2=data_struct[1:len(data_struct):2]
+            else:
+                data= data_struct
+                data2=[]
+
+            # Call plotting
+            plot_scores3(plot_dict['fcsteps'],data,plot_dict,plot_vars,minmax)
+
+            # Save the plot to the pdf and open a new pdf page
+            pdf.savefig()
+            plt.close()
+
+            if data2:
+                # Call plotting
+                plot_scores3(plot_dict['fcsteps'],data2,plot_dict,plot_vars,minmax)
+
+                # Save the plot to the pdf and open a new pdf page
+                pdf.savefig()
+                plt.close()
+
+
+            # Call plotting
+            #plot_scores2(plot_dict['fcsteps'],data_struct,plot_dict,plot_vars,minmax)
+
+            # Save the plot to the pdf and open a new pdf page
+            #pdf.savefig()
+            #plt.close()
 
 
 

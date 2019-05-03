@@ -2,10 +2,12 @@
 from __future__ import print_function
 import numpy as np
 import xarray as xr
+import os
+import copy
+
+# For parallel excecution
 import multiprocessing as mp
 import itertools
-import os
-
 from functools import partial
 from itertools import repeat
 
@@ -26,7 +28,8 @@ def get_master(d_path,plot_vars,main_dict,operators,savescore,parallel=False):
         data_struct = get_data_layer(d_path,plot_vars,parallel=parallel)
 
         # Data operations
-        data_struct = structure_for_plotting2(data_struct,main_dict,operators,savescore)
+        if operators:
+            data_struct = structure_for_plotting2(data_struct,main_dict,operators,savescore)
 
 
     # OR load pre-calculated skill score fields
@@ -38,7 +41,8 @@ def get_master(d_path,plot_vars,main_dict,operators,savescore,parallel=False):
 
 
     # Do temporal averaging if requested
-    data_struct=time_average(data_struct,main_dict,operators)
+    if savescore['time_mean']:
+        data_struct=time_average(data_struct,main_dict,operators)
 
     return data_struct
     
@@ -74,10 +78,6 @@ def get_data(data_path,plot_vars):
 
     with xr.open_dataset(data_path) as ds:
 
-        # Do a deep copy, can't use the data further down the
-        # stream otherwise [NOT ACTUALLY NEEDED!]
-        #data=xr.Dataset.copy(ds,deep=True)
-
         # Get variable gribtable name
         item=plot_vars['vars'][0]
 
@@ -109,7 +109,14 @@ def get_data(data_path,plot_vars):
         data_reduced=ds[item2]
 
         if plot_vars['levs']:
-            data_reduced=data_reduced.isel(plev=plot_vars['nlevs'][0])
+            # Try whether z-axis is plev or lev
+            try:
+                data_reduced['plev']
+            except KeyError:
+                data_reduced=data_reduced.isel(lev=plot_vars['nlevs'][0])
+            else:
+                data_reduced=data_reduced.isel(plev=plot_vars['nlevs'][0])
+
 
         # Change variable name to ecmwf-gribtable one
         data_reduced.name=item
@@ -284,23 +291,35 @@ def calc_crps(data,index):
     # Performance
     start_time = timeit.default_timer()
 
-    if False:
+    if True:
+        crps1_time=0.
+        crps2_time=0.
+
         # Loop over ensemble members
         for imem in range(1,len(index)):
             i2=index[imem]
 
+            # Performance
+            start_tmp = timeit.default_timer()
+
             # Distance to observations
             crps1 = crps1 + np.abs(data[i1]-data[i2])
 
+            # Performance
+            crps1_time = crps1_time + (timeit.default_timer() - start_tmp)
+            start_tmp = timeit.default_timer()
+
             # Spread component
-            for imem2 in range(1,len(index)):
+            for imem2 in range(1+imem,len(index)):
                 i3=index[imem2]
                 # Skip calculations with self
                 if i3 != i2:
-                    crps2 = crps2 + np.abs(data[i2]-data[i3])
-    else:
-        crps1=0.
-        crps2=0.
+                    crps2 = crps2 + 2.*np.abs(data[i2]-data[i3])
+
+            crps2_time = crps2_time + (timeit.default_timer() - start_tmp)
+
+        print( " 1", crps1_time)
+        print( " 2", crps2_time)
 
     # Performance
     end_time1 = timeit.default_timer() - start_time
@@ -308,32 +327,43 @@ def calc_crps(data,index):
     # Performance
     start_time = timeit.default_timer()
 
-    if True:
+    if False:
         pool=mp.Pool(processes=ncpus())
         
+        # Performance
+        start_tmp = timeit.default_timer()
+
         # Calculate distance to analysis.
         #
         # Construct indexes for ens members
-        indexes=[index[x] for x in range(1,len(index))]
+        forecasts = [data[index[x]] for x in range(1,len(index))]
+
+        # Deep copy
+        forecasts = pool.map(do_deepcopy,forecasts)
 
         # Fix data and AN on function call
-        func = partial(calc_crps_distance,data,i1)
+        anas = [data[i1] for x in range(1,len(index))]
+
+        # Not that much gain from deepcopying these 
+        #anas = pool.map(do_deepcopy,anas)
+
+        # Performance
+        print(" 0", timeit.default_timer() - start_tmp)
+        start_tmp = timeit.default_timer()
 
         # Call map to iterate over ens members
-        crpsA = pool.map(func,indexes)    
+        crpsA = pool.starmap(calc_crps_distance,zip(anas,forecasts))
+
+        # Performance
+        print(" 1", timeit.default_timer() - start_tmp)
+
+        # Release memory
+        anas=[]
+
+        # Sum parallel tasks together
         crpsA = sum(crpsA)
 
-        
-        # Calculate distance between ens members
-        #
-        # Fix data on function call
-        func = partial(calc_crps_distance,data)
-
-        #print(list(itertools.combinations(indexes,2)))
-
-        # Call starmap to iterate over ens members
-        crpsB = pool.starmap(func,itertools.combinations(indexes,2))
-
+        # SPREAD COMPONENT
         # Combinations is listing only unique combinations (x)
         # 0  1  2  3  4  5
         # 1  o  o  o  o  o
@@ -347,15 +377,73 @@ def calc_crps(data,index):
         # to multiply each crpsB value by 2 to get to the correct
         # spread score value.
 
-        crpsB = sum(cb*2. for cb in crpsB)
-    else:
-        crpsA=0.
-        crpsB=0.
+        # Option 1: pool.map
+        if True:
+            # Performance
+            start_tmp = timeit.default_timer()
+
+            crpsC = 0.
+
+            # Calculate distance between ens members
+            #
+            for imem in range(0,len(forecasts)-1):
+                i2=index[imem]
+                # Option A, use data-structure. NOTE: loop should be 1,len(index)
+                #
+                # Fix data on function call
+                #func = partial(calc_crps_distance,data[i2])
+                # Construct indexes for ens members
+                #forecasts1=[data[index[x]] for x in range(1+imem,len(index))]
+
+                # Option B, use forecasts structure
+                #
+                # Fix data on function call
+                func = partial(calc_crps_distance,forecasts[imem])
+
+                # Construct indexes for ens members
+                forecasts1 = [forecasts[x] for x in range(imem+1,len(forecasts))]
+
+                crpsB = pool.map(func,forecasts1)  
+
+                # Release memory
+                forecasts1=[]
+
+                # Sum parallel tasks together
+                crpsB = sum(cb*2. for cb in crpsB)
+
+                crpsC = crpsC + crpsB
+
+            print(" 3", timeit.default_timer() - start_tmp)
+
+        # Option 2: pool.starmap
+        if False:
+            # Performance
+            start_tmp = timeit.default_timer()
+
+            #forecasts=[index[x] for x in range(1,len(index))]
+            #forecasts=list(itertools.combinations(forecasts,2))
+
+            forecasts1 = list(itertools.combinations(range(0,len(forecasts)),2))
+
+            forecasts1 = [[forecasts[x],forecasts[y]] for x,y in forecasts1]
+            # deepcopying is painfully slow
+            #datas = pool.map(do_deepcopy,datas)
+
+            # Call starmap to iterate over ens members
+            crpsB = pool.starmap(calc_crps_distance,datas)
+
+            # Release memory
+            datas=[]
+
+            # Sum parallel tasks together
+            crpsC = sum(cb*2. for cb in crpsB)
+
+            # Performance
+            print(" 3", timeit.default_timer() - start_tmp)
+
 
     # Performance
     end_time2 = timeit.default_timer() - start_time
-
-
     print("\ņ\n PERFORMANCE")
     print(" Time serial",end_time1)
     print(" Time pool",end_time2)
@@ -365,9 +453,9 @@ def calc_crps(data,index):
     #print(" CRPS B",round(sum(sum(sum(crps2.values - crpsB.values))),0),round(sum(sum(sum(crps2.values))),0))
 
     M=len(index)-1
-    crps1 = crpsA/M
-    crps2a = crpsB/(2*M**2)
-    crps2b = crpsB/(2*M*(M-1))
+    crps1 = crps1/M
+    crps2a = crps2/(2*M**2)
+    crps2b = crps2/(2*M*(M-1))
 
     print()
 
@@ -378,11 +466,19 @@ def calc_crps(data,index):
     return crps,fair,crps1,crps2a,crps2b
 
 
-def calc_crps_distance(data,i1,i2):
+
+def do_deepcopy(data):
+
+    return copy.deepcopy(data)
+
+
+
+def calc_crps_distance(i1,i2):
 
     #print(i1,i2)
     # Distance to observations
-    return np.abs(data[i1]-data[i2])
+    #return np.abs(data[i1]-data[i2])
+    return np.abs(i1-i2)
 
 
 

@@ -22,8 +22,8 @@
 #            ensmemb   : construct a list of ensemble member 
 #	     	       	 names, size indicated with 'nmem' : N.
 # 
-exps   = prod_t159_eda+sv_sisu
-snames = eda+sv
+exps   = prod_t399_eda+sv_sisu
+snames = t399_eda+sv
 paths  = /wrk/ollinaho/DONOTREMOVE/oeps_pp/
 dates  = 2016120100
 types  = p000,ensmemb

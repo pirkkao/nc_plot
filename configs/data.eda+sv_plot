@@ -25,7 +25,7 @@
 exps   = prod_t159_eda+sv_sisu
 snames = eda+sv
 paths  = /wrk/ollinaho/DONOTREMOVE/oeps_pp/
-dates  = 2016120100
+dates  = 2016120100/to/2017112600/by/8
 types  = p000,ensmemb
 nmem   = 51
 
@@ -33,7 +33,7 @@ nmem   = 51
 [AN] 
 exps  = AN
 paths = /wrk/ollinaho/DONOTREMOVE/public/
-dates = 2016120100
+dates = 2016120100/to/2017112600/by/8
 types = an_pl
 
 
@@ -49,7 +49,7 @@ types = an_pl
 # If plotting the cyclone tracks, all the elements will be filled
 # with MSL according to the number of opened data sources.
 
-var1 = T,4
+var1 = T, 4
 
 
 [scores]
@@ -69,8 +69,8 @@ operator5 = crps,-1,0/to/51/by/1
 # "default" file name will generate or open a filename as
 # "exp_operator_variable_date.nc".
 
-save_scores=True
-load_scores=False
+save_scores=False
+load_scores=True
 fnames=default
 fpath=/wrk/ollinaho/DONOTREMOVE/public/SCORES/
 
@@ -87,7 +87,7 @@ legend_cols=r,violet,b,g,k
 legend_names=N8,N10,N12,N20,N51
 
 crps=True
-plot_type=none
+
 
 [2dplot]
 

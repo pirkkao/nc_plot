@@ -36,12 +36,17 @@ def update_main_dict(main_dict):
 
 
 
-def data_config(name):
+def data_config(name,exptyp,expdir):
+
+    if not exptyp:
+        exptyp="data"
+
+    if not expdir:
+        expdir="configs"
 
     # Read in configparser configuration file
     parser = SafeConfigParser()
-    parser.read("configs/data."+name)
-
+    parser.read(expdir+"/"+exptyp+"."+name)
 
     # Return as a dictionary for further use
     my_config_parser_dict = {s:dict(parser.items(s)) for s in parser.sections()}
@@ -60,6 +65,12 @@ def data_config(name):
 
     
     savescore['fnames']=save_score_names(main_dict,operators,pvars,savescore)
+
+    print("\nMAIN_DICT:","\n",main_dict)
+    print("\nPVARS:","\n",pvars)
+    print("\nOPERATORS:","\n",operators)
+    print("\nSCORE SAVING:","\n",savescore)
+    print("\nPLOTTING:","\n",plot_dict2,"\n")
 
     return main_dict,pvars,operators,savescore,plot_dict2
 
@@ -117,9 +128,17 @@ def save_score_names(main_dict,operators,pvars,savescore):
 
 def parse_plot_dict(mydict):
 
+    # Parse general plotting 
+    #
+    tmp=mydict['plot']
+    sub_dict={s:tmp[s].split(',')[0] for s in tmp}
+
+
+    # Parse score_plot
+    #
     score_plot = mydict['score_plot']
 
-    sub_dict={s:score_plot[s].split(',') for s in score_plot}
+    sub_dict.update({s:score_plot[s].split(',') for s in score_plot})
 
     # Special treatment for time range
     time=[]
@@ -213,7 +232,11 @@ def parse_data_dict(mydict):
 def parse_dates_dict(sub_dict):
     "Generate date list if keywords 'to' and 'by' are defined"
 
-    if sub_dict['dates'][0].split('/')[1]=='to':
+    try:
+        sub_dict['dates'][0].split('/')[1]
+    except IndexError:
+        pass
+    else:
 
         dates=sub_dict['dates'][0].split('/')
 
