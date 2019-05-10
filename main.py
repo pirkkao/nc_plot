@@ -47,7 +47,7 @@ if len(sys.argv)>2:
     expdir=str(sys.argv[2])
 
 # Call setup
-main_dict, pvars, operators, savescore, plot_dict2 = msetup.data_config(exp,exptyp,expdir)
+main_dict, pvars, operators, dataoper, savescore, plot_dict2 = msetup.data_config(exp,exptyp,expdir)
 
 
 #exit()
@@ -68,7 +68,7 @@ plot_dict = msetup.configure_plot(plot_dict,plot_vars)
 plot_dict.update(plot_dict2)
 
 # Construct data paths
-d_path = msetup.create_paths(main_dict)
+d_path = msetup.create_paths(main_dict,plot_vars)
 
 
 #exit()
@@ -78,10 +78,10 @@ d_path = msetup.create_paths(main_dict)
 
 # Fetch data
 data_struct = mdata.get_master(d_path,plot_vars,main_dict,operators,\
-                               savescore,parallel=False)
+                               dataoper,savescore,parallel=False)
 
 # Get data min/max values from the forecast period
-minmax = mdata.get_minmax_layer(plot_dict['minmax'],data_struct)
+minmax = mdata.get_minmax_layer(plot_dict,data_struct)
 #minmax=[]
 
 
@@ -91,5 +91,5 @@ minmax = mdata.get_minmax_layer(plot_dict['minmax'],data_struct)
 # ***********************************************************************
 
 # Call plot
-if plot_dict['plot_type'] != ['none']:
+if plot_dict['plot_type'] != 'none':
     mplot.plot_master(data_struct,plot_dict,plot_vars,minmax)

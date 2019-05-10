@@ -54,7 +54,8 @@ def data_config(name,exptyp,expdir):
     # Return sub variables for further use
     main_dict = parse_data_dict(my_config_parser_dict)
     pvars     = parse_vars_dict(my_config_parser_dict)
-    operators = parse_oper_dict(my_config_parser_dict)
+    operators = parse_oper_dict(my_config_parser_dict,'scores')
+    opers     = parse_oper_dict(my_config_parser_dict,'operations')
     savescore = parse_save_dict(my_config_parser_dict)
 
     # Unroll possible keywords in main_dict
@@ -66,13 +67,14 @@ def data_config(name,exptyp,expdir):
     
     savescore['fnames']=save_score_names(main_dict,operators,pvars,savescore)
 
-    print("\nMAIN_DICT:","\n",main_dict)
-    print("\nPVARS:","\n",pvars)
-    print("\nOPERATORS:","\n",operators)
+    print("\nMAIN_DICT:"   ,"\n",main_dict)
+    print("\nPVARS:"       ,"\n",pvars)
+    print("\nOPERATORS:"   ,"\n",opers)
+    print("\nSCORES:"      ,"\n",operators)
     print("\nSCORE SAVING:","\n",savescore)
-    print("\nPLOTTING:","\n",plot_dict2,"\n")
+    print("\nPLOTTING:"    ,"\n",plot_dict2,"\n")
 
-    return main_dict,pvars,operators,savescore,plot_dict2
+    return main_dict,pvars,operators,opers,savescore,plot_dict2
 
 
 
@@ -131,7 +133,44 @@ def parse_plot_dict(mydict):
     # Parse general plotting 
     #
     tmp=mydict['plot']
-    sub_dict={s:tmp[s].split(',')[0] for s in tmp}
+    sub_dict={s:tmp[s] for s in tmp}
+
+    # Eval lonlat if not "global"
+    if sub_dict['lonlat']!="global":
+        sub_dict['lonlat']=eval(sub_dict['lonlat'])
+
+
+    # Special treatment for forecast length
+    try:
+        tmp['fcsteps'].split('/')[1]
+    except IndexError:
+        sub_dict['fcsteps']=eval(tmp['fcsteps'])
+    else:
+        tmp_step=tmp['fcsteps'].split('/')
+
+        isteps=[]
+
+        step=int(tmp_step[0])
+        last_step=int(tmp_step[2])
+
+        while step <= last_step:
+
+            # Construct indexes
+            isteps.append(int(step/eval(tmp['data_fcstep_len'])))
+
+            step=step+int(tmp_step[4])
+            
+        sub_dict['fcsteps']=isteps
+
+
+    # Figure size, nrows, ncols, contour levels
+    for key in ['fig_size','fig_nrow','fig_ncol','fig_cf_levs','fig_c_levs']:
+        try:
+            tmp[key]
+        except KeyError:
+            pass
+        else:
+            sub_dict[key]=eval(tmp[key])
 
 
     # Parse score_plot
@@ -140,14 +179,20 @@ def parse_plot_dict(mydict):
 
     sub_dict.update({s:score_plot[s].split(',') for s in score_plot})
 
-    # Special treatment for time range
-    time=[]
-    time_ranges=score_plot['time'].split(';')
-    for itime in range(0,len(time_ranges)):
 
-        time.append(eval(time_ranges[itime]))
+    # Special treatment for time range
+    try:
+        score_plot['time'].split(';')[1]
+    except KeyError:
+        pass
+    else:
+        time=[]
+        time_ranges=score_plot['time'].split(';')
+        for itime in range(0,len(time_ranges)):
+            time.append(eval(time_ranges[itime]))
         
-    sub_dict['time']=time
+        sub_dict['time']=time
+
 
     # Special treatment for CRPS plotting
     try:
@@ -246,7 +291,7 @@ def parse_dates_dict(sub_dict):
         ddates=[]
         while dd <= dt1:
             ddates.append(dd.strftime("%Y%m%d%H"))
-            dd = dd + timedelta(days=int(dates[4]))
+            dd = dd + timedelta(hours=eval(dates[4])*24)
 
         sub_dict['dates']=ddates
 
@@ -274,12 +319,12 @@ def parse_vars_dict(mydict):
 
 
 
-def parse_oper_dict(mydict):
+def parse_oper_dict(mydict,otype):
     # Return data operators as an array
 
     oper=[]
-    for item in mydict['scores']:
-        oper.append(mydict['scores'][item].split(','))
+    for item in mydict[otype]:
+        oper.append(mydict[otype][item].split(','))
 
     # Change data source numbers to integers
     for ioper in range(0,len(oper)): 
@@ -414,15 +459,15 @@ and opened data files. Not all data sources will be plotted.\n")
                         
     print()
     print("DATA CONFIGURATION:")
-    #for plv in plot_vars:
-    #    print(plv)
+    for plv in plot_vars:
+        print(plv)
     print("")
 
     return plot_vars
 
 
 
-def create_paths(main_dict):
+def create_paths(main_dict,plot_vars):
     "Unroll dictionary elements to construct data paths"
 
     d_path=[]
@@ -444,8 +489,16 @@ def create_paths(main_dict):
 
             for fnam in fnames:
                 for date in dates:
-                    d_path.append(basepath+exp+"/"+date+"/"+fnam+".nc")
+                    # Iterate over variables if a single input source open
+                    if len(fnames)==1 and len(dates)==1:
+                        for pvar in plot_vars:
+                            d_path.append(basepath+exp+"/"+date+"/"+fnam+".nc")
+                            
+                    # Else just iterate over fnames and dates
+                    else:
+                        d_path.append(basepath+exp+"/"+date+"/"+fnam+".nc")
 
+    #print(d_path)
     return d_path
 
 
@@ -488,8 +541,8 @@ def create_plot_dict():
         # If left blank, default settings will used and ncol is defined to equal
         # number of variables to be plotted.
         'fig_size'   : (12,14),
-        'fig_nrow'   : 2,
-        'fig_ncol'   : 1,
+        'fig_nrow'   : [],
+        'fig_ncol'   : [],
 
         # Define number of contourf (cf_levs) and contour levels (c_levs), and
         # colour of contour lines.

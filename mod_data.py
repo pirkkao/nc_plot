@@ -18,7 +18,7 @@ from mod_plot import get_varname
 
 
 
-def get_master(d_path,plot_vars,main_dict,operators,savescore,parallel=False):
+def get_master(d_path,plot_vars,main_dict,operators,dataoper,savescore,parallel=False):
     "Either open raw nc-files for reading or fetch pre-calculated scores"
 
     # Open raw variable fields and do skill score calculations if requested
@@ -26,11 +26,16 @@ def get_master(d_path,plot_vars,main_dict,operators,savescore,parallel=False):
     if not savescore['load_scores']:
         # Fetch all data
         data_struct = get_data_layer(d_path,plot_vars,parallel=parallel)
+        print("")
 
         # Data operations
         if operators:
             data_struct = structure_for_plotting2(data_struct,main_dict,operators,savescore)
+            print("")
 
+        if dataoper:
+            data_struct = structure_for_plotting3(data_struct,main_dict,dataoper)
+            print("")
 
     # OR load pre-calculated skill score fields
     #
@@ -64,10 +69,9 @@ def get_data_layer(pnames,plot_vars,parallel=True):
         alldata=[]
         for psource in pnames:
             data=get_data(psource,plot_vars[idata])
+
             alldata.append(data)
-
             idata+=1
-
 
     return alldata
 
@@ -101,6 +105,9 @@ def get_data(data_path,plot_vars):
         if item=='T2M'   : item2='var167'
         if item=='D2M'   : item2='var168'
         if item=='TP'    : item2='var228'
+        if item=='TP3'   : item2='var228'
+        if item=='TP6'   : item2='var228'
+        if item=='TP12'  : item2='var228'
         if item=='W10M'  : item2='var255'
 
         print("GETTING: "+item+" from "+data_path)
@@ -120,9 +127,91 @@ def get_data(data_path,plot_vars):
 
         # Change variable name to ecmwf-gribtable one
         data_reduced.name=item
-        
+
+
+        # Change total accumulated precip to accumated over 3h time window
+        if item2=='var228':
+            data_reduced=precip_converter(data_reduced,item)
+    
         
         return data_reduced
+
+
+
+def precip_converter(data,item):
+    "Change total accumulated precip to accumated over chosen time window"
+    
+    #NOTE! The data must be in 3h time steps
+
+    # Copy the field
+    dtemp=data
+
+    if item=="TP3":
+        fcskip=1
+    elif item=="TP6":
+        fcskip=2
+    elif item=="TP12":
+        fcskip=4
+    elif item=="TP":
+        fcskip=10000
+
+    dd_temp=[]
+
+    first=True
+    init=True
+    skipper=1
+    # Loop over forecast lengths
+    for time in dtemp.coords['time'].values:
+
+        # Start when enough hours have accumulated
+        if init and skipper < fcskip:
+            skipper+=1
+            print("SKipping "+str(time))
+
+            if first:
+                first=False
+                prev_time=time
+                prev_time1=time
+                prev_time2=time
+
+            continue
+
+        elif init:
+            skipper=1
+            if first:
+                first=False
+                prev_time=time
+                prev_time1=time
+                prev_time2=time
+
+                dd_temp.append(dtemp.sel(time=time))
+
+            init=False
+            continue
+
+        
+        # Data substraction
+        dd_temp.append(data.sel(time=time) - dtemp.sel(time=prev_time).values)
+
+        # Keep book of what is previous step
+        if skipper < fcskip:
+            prev_time1=time
+            prev_time=prev_time2
+
+            skipper+=1
+
+        elif fcskip==1:
+            prev_time=time
+
+        else:
+            prev_time2=time
+            prev_time=prev_time1
+
+            skipper=1
+
+    data=xr.concat([idat for idat in dd_temp],dim='time')
+
+    return data
 
 
 
@@ -222,13 +311,76 @@ def structure_for_plotting2(data,main_dict,operators,savescore):
                     tmp=[crps,fair,crps1,crps2a,crps2b]
                     fields=['crps','fair','crps1','crps2','crsp2b']
 
-
                 if savescore['fnames']:
                     print("  Save to:",savescore['fpath'],\
                               savescore['fnames'][nam_ind],"\n")
 
                     save_score_data(savescore['fnames'][nam_ind],savescore['fpath'],\
                                         tmp,fields)
+
+                data_struct.append(tmp)
+
+                # Increment index list
+                index=[x+1 for x in index]
+
+                nam_ind+=1
+
+        iexp+=1
+
+    return data_struct
+
+
+
+def structure_for_plotting3(data,main_dict,operators):
+    "Unroll data into plottable form"
+
+    data_struct=[]
+
+    # Get number of dates
+    N = len(main_dict[0]['dates'])
+    
+    # Get number of data sources
+    ndata = len(data)
+
+    # Initialize name indexing
+    nam_ind=0
+
+    # Number of experiments
+    nexp=len(main_dict[0]['exps'])
+
+    iexp=0
+    # Loop over experiments
+    for exp in main_dict[0]['exps']:
+
+        # Unroll operators
+        for operator in operators:
+
+            print("\nPROCESSING: "+exp+" "+str(operator))
+        
+            index=get_index(N,ndata,operator,nexp,iexp)
+            print(" Number of dates",N)
+            print(" Number of data sources",ndata)
+
+            for date in main_dict[0]['dates']:
+                print("  Date is ",date)
+                print("  Constructed indexes",index)
+
+                # RMSE
+                if operator[0]=='rmse':
+                    tmp=calc_rmse(data,index)
+                    tmp.name=operator[3]
+
+                # SPREAD
+                if operator[0]=='spread':
+                    tmp=calc_spread(data,index)
+
+                # DIFF
+                if operator[0]=='diff':
+                    tmp=data[index[0]]-data[index[1]]
+
+                # No operations
+                if operator[0]=='none':
+                    tmp=data[index[0]]
 
                 data_struct.append(tmp)
 
@@ -551,16 +703,19 @@ def structure_for_plotting(dd,plot_vars):
 
 
 
-def get_minmax_layer(lgetmin,data_struct):
+def get_minmax_layer(plot_dict,data_struct):
     "Variable level layer for finding min and max of the data, \
     fix min-max to be the same for same variables"
 
+    lgetmin=plot_dict['minmax']
+    steps=plot_dict['fcsteps']
+
     if lgetmin=="rel":
-        minmax=get_minmax(data_struct)
+        minmax=get_minmax(data_struct,steps)
 
     elif lgetmin=="abs":
 
-        minmax=get_minmax(data_struct)
+        minmax=get_minmax(data_struct,steps)
 
         # Get variable names to check which elements are the same
         vnames=[]
@@ -596,7 +751,7 @@ def get_minmax_layer(lgetmin,data_struct):
             minmax[elem,1]=max(minmax[elem,1])
 
 
-    elif lgetmin=="":
+    elif lgetmin=="nan":
         minmax=[]
         for data in data_struct:
             minmax.append([[],[]])
@@ -605,35 +760,43 @@ def get_minmax_layer(lgetmin,data_struct):
 
 
 
-def get_minmax(data_struct):
+def get_minmax(data_struct,steps):
     "Check minimum and maximum of the data"
 
-    mins=[]
-    maxs=[]
+    iimins=[]
+    iimaxs=[]
+    # Loop over variables
     for data in data_struct:
-        imin=float(data.min().values)
-        imax=float(data.max().values)
+        mins=[]
+        maxs=[]
+        # Loop over forecast length indexes
+        for step in steps:
+            imin=float(data.isel(time=step).min().values)
+            imax=float(data.isel(time=step).max().values)
 
-        # Apply some rounding
-        if imin > 1000.:
-            imin=round(imin,0)
-            imax=round(imax,0)
-        elif imin > 100.:
-            imin=round(imin,1)
-            imax=round(imax,1)
-        elif imin >= 0.1:
-            imin=round(imin,2)
-            imax=round(imax,2)
-        elif imin < 0.1: # basically q
-            imin=round(imin,5)
-            imax=round(imax,5)
+            # Apply some rounding
+            if imin > 1000.:
+                imin=round(imin,0)
+                imax=round(imax,0)
+            elif imin > 100.:
+                imin=round(imin,1)
+                imax=round(imax,1)
+            elif imin >= 0.1:
+                imin=round(imin,2)
+                imax=round(imax,2)
+            elif imin < 0.1: # basically q
+                imin=round(imin,5)
+                imax=round(imax,5)
 
-        mins.append(imin)
-        maxs.append(imax)
+            mins.append(imin)
+            maxs.append(imax)
 
-    minmax=np.zeros([len(mins),2])
-    for i in range(0,len(mins)):
-        minmax[i]=[mins[i],maxs[i]]
+        iimins.append(min(mins))
+        iimaxs.append(max(maxs))
+
+    minmax=np.zeros([len(data_struct),2])
+    for i in range(0,len(data_struct)):
+        minmax[i]=[iimins[i],iimaxs[i]]
 
     return minmax
 

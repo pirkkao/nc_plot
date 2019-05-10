@@ -40,7 +40,6 @@ def plot_master(data_struct,plot_dict,plot_vars,minmax):
             for fcstep in plot_dict['fcsteps']:
 
                 # Call plotting
-                #plot_data(fcstep,data_struct,lonlat=plot_dict['lonlat'],minmax=minmax,plot_vars=plot_vars)
                 plot_data(fcstep,data_struct,plot_dict,plot_vars,minmax)
 
                 # Save the plot to the pdf and open a new pdf page
@@ -114,7 +113,6 @@ def plot_data(itime,data_struct,plot_dict,plot_vars,minmax):
 
     # Generate color maps for data
     cmaps=col_maps_data(data_struct,plot_dict,plot_vars)
-
     # Create a figure
     fig,ax=create_figure(data_struct,plot_dict)
 
@@ -314,10 +312,6 @@ def call_score(ax,data,area,time,col,style):
     # Take the areal mean
     dd=data.mean(['lon','lat'])
 
-    #print(dd)
-
-    #ax.plot(dd)
-    #dd.plot()
     xr.plot.line(dd,ax=ax,color=col,linestyle=style)
 
 
@@ -417,12 +411,12 @@ def call_plot(ax,data,\
        xr.DataArray(data=None),xr.DataArray(data=None)]
 
     # Choose a timeinstance and level setting from the data
-    if get_varname(data)=='TP':
+    #if get_varname(data)=='TP':
         # Precipitation is cumulative, get the diff of the last fcsteps
-        d[0]=data.isel(time=options[0])-data.isel(time=options[0]-1)
+    #    d[0]=data.isel(time=options[0])-data.isel(time=options[0]-1)
 
-    else:
-        d[0]=data.isel(time=options[0])
+    #else:
+    d[0]=data.isel(time=options[0])
 
     # Get data information
     #dtime=d[0]['time']
@@ -432,23 +426,15 @@ def call_plot(ax,data,\
     if data3.notnull(): d[2]=data3.sel(time=dtime)
     if data4.notnull(): d[3]=data4.sel(time=dtime)
 
-    #if not minmax.any():
-    #    minmax.append(d[0].min().values)
-    #    minmax.append(d[0].max().values)
 
     # Contourf.
     if plottype=="contourf":
-        if get_varname(d[0])=='TP':
-            contourf_cartopy(ax,d[0],[],[],cmap=cmap)
-        else:
-            contourf_cartopy(ax,d[0],minmax[0],minmax[1],cmap=cmap)
+        contourf_cartopy(ax,d[0],minmax[0],minmax[1],cmap=cmap)
 
     if plottype=="contour":
-        if get_varname(d[0])=='TP':
-            contour_cartopy(ax,d[0],[],[],cmap=cmap)
-        else:
-            contour_cartopy(ax,d[0],minmax[0],minmax[1],cmap=cmap)
+        contour_cartopy(ax, d[0],minmax[0],minmax[1],cmap=cmap)
   
+
 
 def calc_stats(an,data):
     "Calculate global/regional statistics from the given data"
@@ -477,6 +463,7 @@ def contourf_cartopy(ax,data,fmin,fmax,cmap):
             ncolors=cmap[1]
             cmap=cmap[0]
 
+
     # Determine contour intervals
     if not fmin==[]:
         conts=np.arange(fmin,fmax,(fmax-fmin)/ncolors)
@@ -487,7 +474,7 @@ def contourf_cartopy(ax,data,fmin,fmax,cmap):
 
     # Plot
     xr.plot.contourf(data, ax=ax, transform=ccrs.PlateCarree(), \
-                     cmap=cmap, levels=conts, extend='max')
+                     cmap=cmap, levels=conts, extend='both')
 
             
 
@@ -597,7 +584,7 @@ def col_maps_data(data_struct,plot_dict,plot_vars=[]):
                 icol=1
 
             # TEMP SOLUTION FOR SCORES
-            icol=1
+            #icol=1
 
         cmap=col_maps(get_varname(data),clevs)[icol]
 
