@@ -109,7 +109,7 @@ time_mean=False
 #                "track" - plot a simple tropical cyclone track
 #
 
-fig_name=test_1G
+fig_name=test_1F
 
 plot_type=2dmap
 
