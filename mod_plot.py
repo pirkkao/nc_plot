@@ -15,7 +15,8 @@ from matplotlib.lines import Line2D as Line
 from matplotlib.backends.backend_pdf import PdfPages
 
 # import from mod_tctrack (change to util?)
-from mod_tctrack import tc_plot
+#from mod_tctrack import tc_plot
+import mod_tctrack as mtrack
 
 # import from local
 from mod_util import plot_legend, plot_features
@@ -321,7 +322,7 @@ def call_plot_add(ax,plot_dict):
     
     # Plot Damrey track
     if plot_dict['fig_obs_track']:
-        tc_plot(ax,plot_dict['fig_obs_file'],plot_dict['fig_obs_col'],buff=plot_dict['fig_obs_buff'])
+        mtrack.tc_plot(ax,plot_dict['fig_obs_file'],plot_dict['fig_obs_col'],buff=plot_dict['fig_obs_buff'])
 
     # Plot map features
     if plot_dict['fig_features']:

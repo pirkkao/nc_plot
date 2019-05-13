@@ -382,6 +382,14 @@ def structure_for_plotting3(data,main_dict,operators):
                 if operator[0]=='none':
                     tmp=data[index[0]]
 
+                # Divide by a constant
+                if operator[0]=='div':
+                    tmp=data[index[0]]/float(index[1])
+
+                # Substract a constant
+                if operator[0]=='sub':
+                    tmp=data[index[0]]-index[1]
+
                 data_struct.append(tmp)
 
                 # Increment index list
