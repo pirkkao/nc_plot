@@ -338,6 +338,11 @@ def parse_oper_dict(mydict,otype):
             else:
                 oper[ioper][i]=int(oper[ioper][i])
     
+        # Transmute hours to fcsteps
+        if oper[ioper][0]=='time':
+            fclen=int(mydict['plot']['data_fcstep_len'])
+            oper[ioper][2]=int(oper[ioper][2]/fclen)
+
     return oper
 
 

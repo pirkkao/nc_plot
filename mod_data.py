@@ -128,6 +128,9 @@ def get_data(data_path,plot_vars):
         # Change variable name to ecmwf-gribtable one
         data_reduced.name=item
 
+        # Change pressure into hPa
+        if item2=='var151' or item2=='Z':
+            data_reduced=data_reduced/100.
 
         # Change total accumulated precip to accumated over 3h time window
         if item2=='var228':
@@ -342,62 +345,50 @@ def structure_for_plotting3(data,main_dict,operators):
     # Get number of data sources
     ndata = len(data)
 
-    # Initialize name indexing
-    nam_ind=0
-
     # Number of experiments
     nexp=len(main_dict[0]['exps'])
 
-    iexp=0
     # Loop over experiments
     for exp in main_dict[0]['exps']:
 
         # Unroll operators
         for operator in operators:
 
-            print("\nPROCESSING: "+exp+" "+str(operator))
+            print("PROCESSING: "+exp+" "+str(operator))
         
-            index=get_index(N,ndata,operator,nexp,iexp)
-            print(" Number of dates",N)
-            print(" Number of data sources",ndata)
+            index=[operator[1],operator[2]]
 
-            for date in main_dict[0]['dates']:
-                print("  Date is ",date)
-                print("  Constructed indexes",index)
+            # RMSE
+            if operator[0]=='rmse':
+                tmp=calc_rmse(data,index)
+                tmp.name=operator[3]
 
-                # RMSE
-                if operator[0]=='rmse':
-                    tmp=calc_rmse(data,index)
-                    tmp.name=operator[3]
+            # SPREAD
+            if operator[0]=='spread':
+                tmp=calc_spread(data,index)
 
-                # SPREAD
-                if operator[0]=='spread':
-                    tmp=calc_spread(data,index)
+            # DIFF
+            if operator[0]=='diff':
+                tmp=data[index[0]]-data[index[1]]
 
-                # DIFF
-                if operator[0]=='diff':
-                    tmp=data[index[0]]-data[index[1]]
+            # No operations
+            if operator[0]=='none':
+                tmp=data[index[0]]
 
-                # No operations
-                if operator[0]=='none':
-                    tmp=data[index[0]]
+            # Divide by a constant
+            if operator[0]=='div':
+                tmp=data[index[0]]/float(index[1])
 
-                # Divide by a constant
-                if operator[0]=='div':
-                    tmp=data[index[0]]/float(index[1])
+            # Substract a constant
+            if operator[0]=='sub':
+                tmp=data[index[0]]-index[1]
 
-                # Substract a constant
-                if operator[0]=='sub':
-                    tmp=data[index[0]]-index[1]
+            # Shift time axis
+            if operator[0]=='time':
+                nlen=len(data[index[0]].coords['time'])
+                tmp=data[index[0]].isel(time=range(index[1],nlen))
 
-                data_struct.append(tmp)
-
-                # Increment index list
-                index=[x+1 for x in index]
-
-                nam_ind+=1
-
-        iexp+=1
+            data_struct.append(tmp)
 
     return data_struct
 
@@ -787,8 +778,8 @@ def get_minmax(data_struct,steps):
                 imin=round(imin,0)
                 imax=round(imax,0)
             elif imin > 100.:
-                imin=round(imin,1)
-                imax=round(imax,1)
+                imin=round(imin,0)
+                imax=round(imax,0)
             elif imin >= 0.1:
                 imin=round(imin,2)
                 imax=round(imax,2)

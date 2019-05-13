@@ -70,16 +70,17 @@ def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
 
 
     # Plot Damrey track
-    if plot_dict['fig_obs_match_time']:
-        xax_obs,obs=tc_plot(ax1,'damrey_track.dat','red',buff=plot_dict['fig_obs_buff'],\
-                                match_date_to=[dt0,fcsteps])
-    else:
-        tc_plot(ax1,'damrey_track.dat','red',buff=plot_dict['fig_obs_buff'],\
-                    match_date_to=[])
+    if eval(plot_dict['fig_obs_track']):
+        if eval(plot_dict['fig_obs_match_time']):
+            xax_obs,obs=tc_plot(ax1,'damrey_track.dat','red',buff=plot_dict['fig_obs_buff'],\
+                                    match_date_to=[dt0,fcsteps])
+        else:
+            tc_plot(ax1,'damrey_track.dat','red',buff=plot_dict['fig_obs_buff'],\
+                        match_date_to=[])
 
-    # Plot Damrey observed pressure
-    if plot_dict['fig_obs_match_time']:
-        ax2.plot(xax_obs,obs,color='r')
+        # Plot Damrey observed pressure
+        #if eval(plot_dict['fig_obs_match_time']):
+        #    ax2.plot(xax_obs,obs,color='r')
     
 
     # Change x-tick properties
@@ -143,7 +144,10 @@ def create_tc_track(ax,data,plot_var,fcsteps,icol,buff=[],ens_show=False,buff_al
     else:
         alpha=0.7
 
-    if plot_var['ens']=="ctrl":
+    if plot_var['ens']=="ctrl" and icol!='k':
+        ax.add_geometries([track], ccrs.PlateCarree(),
+                          facecolor='none',edgecolor=icol,linewidth=3.0,alpha=alpha)
+    elif plot_var['ens']=="ctrl":
         ax.add_geometries([track], ccrs.PlateCarree(),
                           facecolor='none',edgecolor='k',linewidth=3.0,alpha=alpha)
 
@@ -290,8 +294,8 @@ def tc_depth(data_path):
 
             dates.append(datetime(yy,mm,dd,hh))
 
-            # Get pressure in hPa, convert Pa
-            pmins.append(float(line.split()[6])*100.)
+            # Get pressure in hPa
+            pmins.append(float(line.split()[6]))
 
         return dates,pmins
 
@@ -321,7 +325,8 @@ def col_list_data(data_struct,plot_dict,plot_vars=[]):
                     except KeyError:
                         cols.append('k')
                     else:
-                        cols.append(plot_dict['fig_ctrl_col'])
+                        if plot_dict['fig_ctrl_col']:
+                            cols.append(plot_dict['fig_ctrl_col'])
 
                 # Ensemble member color
                 elif ivar['ens']=='ensmean':

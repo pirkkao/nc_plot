@@ -57,6 +57,7 @@ main_dict, pvars, operators, dataoper, savescore, plot_dict2 = msetup.data_confi
 
 # Get plot dict
 plot_dict = msetup.create_plot_dict()
+plot_dict.update(plot_dict2)
 
 # Get variable list
 plot_vars = msetup.create_vars(pvars,main_dict,plot_dict)

@@ -495,7 +495,7 @@ def contour_cartopy(ax,data,fmin,fmax,cmap):
 
     # Plot
     cs=xr.plot.contour(data, ax=ax, transform=ccrs.PlateCarree(), \
-                     levels=conts,colors=ccol,alpha=0.95)
+                     levels=conts,colors=ccol,alpha=0.65)
 
     ax.clabel(cs,fmt= '%1.0f',fontsize=14)
 
