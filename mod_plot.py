@@ -322,7 +322,7 @@ def call_plot_add(ax,plot_dict):
     
     # Plot Damrey track
     if plot_dict['fig_obs_track']:
-        mtrack.tc_plot(ax,plot_dict['fig_obs_file'],plot_dict['fig_obs_col'],buff=plot_dict['fig_obs_buff'])
+        mtrack.tc_plot(ax,plot_dict['fig_obs_file'],plot_dict['fig_obs_col'],buff=plot_dict['fig_obs_buff'],fig_markers=plot_dict['fig_markers'])
 
     # Plot map features
     if plot_dict['fig_features']:
