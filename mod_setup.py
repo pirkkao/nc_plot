@@ -623,6 +623,8 @@ def configure_plot(plot_dict,plot_vars):
     loc_dict.update({'fig_ylabel': False})
     loc_dict.update({'fig_xlabel': False})
 
+    loc_dict.update({'fig_markers'  : False})
+
     loc_dict.update({'fig_ens_predef': False})
     loc_dict.update({'fig_ens_show'  : False})
     loc_dict.update({'fig_ens_col'   : []})
@@ -676,6 +678,8 @@ def configure_plot(plot_dict,plot_vars):
                      'fig_c_levs',\
                      'fig_c_col',\
                          
+                     'fig_markers',\
+
                      'fig_ens_predef',\
                      'fig_ens_show',\
                      'fig_ens_col',\

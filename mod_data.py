@@ -110,6 +110,7 @@ def get_data(data_path,plot_vars):
         if item=='TP6'   : item2='var228'
         if item=='TP12'  : item2='var228'
         if item=='W10M'  : item2='var255'
+        if item=='SST'   : item2='var34'
 
         print("GETTING: "+item+" from "+data_path)
 
@@ -388,6 +389,14 @@ def structure_for_plotting3(data,main_dict,operators):
             if operator[0]=='time':
                 nlen=len(data[index[0]].coords['time'])
                 tmp=data[index[0]].isel(time=range(index[1],nlen))
+
+            # Mask data
+            if operator[0]=='mask':
+                if index[1]>0:
+                    tmp=data[index[0]].where(data[index[0]]<index[1])
+                else:
+                    tmp=data[index[0]].where(data[index[0]]>(-1*index[1]))
+                    
 
             data_struct.append(tmp)
 

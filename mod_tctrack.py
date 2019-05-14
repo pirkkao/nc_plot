@@ -42,14 +42,14 @@ def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
 
     # Create colours
     cols=col_list_data(data_struct,plot_dict,plot_vars)
-
     
     ifc_diff=0
     icol=0
     for data in data_struct:
         # Plot forecast low track
         pmins=create_tc_track(ax1,data,plot_vars[icol],fcsteps,cols[icol],buff=plot_dict['fig_ens_buff'],\
-                                  ens_show=plot_dict['fig_ens_show'],buff_alpha=plot_dict['fig_ens_alpha'])
+                                  ens_show=plot_dict['fig_ens_show'],buff_alpha=plot_dict['fig_ens_alpha'],\
+                                  fig_markers=plot_dict['fig_markers'])
 
         # Construct x-axis for pmin plot based on forecast initialization date
         xax=[x*3 for x in fcsteps]
@@ -73,10 +73,10 @@ def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
     if eval(plot_dict['fig_obs_track']):
         if eval(plot_dict['fig_obs_match_time']):
             xax_obs,obs=tc_plot(ax1,'damrey_track.dat','red',buff=plot_dict['fig_obs_buff'],\
-                                    match_date_to=[dt0,fcsteps])
+                                    match_date_to=[dt0,fcsteps],fig_markers=plot_dict['fig_markers'])
         else:
             tc_plot(ax1,'damrey_track.dat','red',buff=plot_dict['fig_obs_buff'],\
-                        match_date_to=[])
+                        match_date_to=[],fig_markers=plot_dict['fig_markers'])
 
         # Plot Damrey observed pressure
         #if eval(plot_dict['fig_obs_match_time']):
@@ -97,7 +97,7 @@ def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
 
 
 
-def create_tc_track(ax,data,plot_var,fcsteps,icol,buff=[],ens_show=False,buff_alpha=[]):
+def create_tc_track(ax,data,plot_var,fcsteps,icol,buff=[],ens_show=False,buff_alpha=[],fig_markers=[]):
     "Find and construct the TC track from the data"
 
     lons=[]
@@ -117,6 +117,8 @@ def create_tc_track(ax,data,plot_var,fcsteps,icol,buff=[],ens_show=False,buff_al
         else:
             pmin.append(float('nan'))
 
+        #lonss,latss=find_pressure_mins(data.isel(time=fcstep))
+        #print(lonss,latss)
 
     # Calculate distance between points
     #trackpoint_prev=[]
@@ -155,6 +157,9 @@ def create_tc_track(ax,data,plot_var,fcsteps,icol,buff=[],ens_show=False,buff_al
         ax.add_geometries([track], ccrs.PlateCarree(),
                           facecolor='none',edgecolor=icol,linewidth=3.0,alpha=alpha)
 
+    if fig_markers:
+        ax.scatter(lons,lats,s=65,marker='x',c=icol)
+
     # Plot a buffer around the track
     if buff and plot_var['ens']=="member":
         track_buffer=track.buffer(buff)
@@ -187,8 +192,29 @@ def find_pressure_min(data):
 
 
 
+def find_pressure_mins(data):
+    "Simply find the coordinates of the lowest pressure reading"
 
-def tc_plot(ax,data_path,edgecolor,buff,match_date_to=[]):
+    lons=[]
+    lats=[]
+
+    for ii in range(0,1000):
+        # Find the value
+        pmin=data.min().values
+
+        # Find the data point
+        ploc=data.where(data==pmin,drop=True)
+
+        lons.append(ploc['lon'].values)
+        lats.append(ploc['lat'].values)
+
+        # Fill the pmin point
+        data.loc[dict(lon=ploc['lon'],lat=ploc['lat'])]=float("nan")
+
+    return lons,lats
+
+
+def tc_plot(ax,data_path,edgecolor,buff,match_date_to=[],fig_markers=[]):
     "Plot TC track with given lat-lon lists"
 
     # Get data 
@@ -237,8 +263,10 @@ def tc_plot(ax,data_path,edgecolor,buff,match_date_to=[]):
 
     # Plot the track
     ax.add_geometries([track], ccrs.PlateCarree(),
-                      facecolor='none',edgecolor=edgecolor,linewidth=4)
+                      facecolor='none',edgecolor=edgecolor,alpha=0.7,linewidth=4)
 
+    if fig_markers:
+        ax.scatter(lons,lats,s=65,marker='x',c=edgecolor)
 
     # Plot a buffer around the track
     if buff:
