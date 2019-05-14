@@ -636,6 +636,7 @@ def configure_plot(plot_dict,plot_vars):
     loc_dict.update({'fig_obs_match_time': False})
 
     loc_dict.update({'fig_features': False})
+    loc_dict.update({'fig_plot_all_minima': False})
 
     # Default figure settings for 2dmap
     if plot_dict['plot_type']=='2dmap':
@@ -702,7 +703,8 @@ def configure_plot(plot_dict,plot_vars):
                      'fig_obs_buff',\
                      'fig_obs_match_time',\
                          
-                     'fig_features']:
+                     'fig_features',\
+                     'fig_plot_all_minima']:
 
 
         # Replace defaults if a value is given in plot_dict

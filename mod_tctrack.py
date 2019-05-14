@@ -49,7 +49,7 @@ def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
         # Plot forecast low track
         pmins=create_tc_track(ax1,data,plot_vars[icol],fcsteps,cols[icol],buff=plot_dict['fig_ens_buff'],\
                                   ens_show=plot_dict['fig_ens_show'],buff_alpha=plot_dict['fig_ens_alpha'],\
-                                  fig_markers=plot_dict['fig_markers'])
+                                  fig_markers=plot_dict['fig_markers'],plot_all_mins=plot_dict['fig_plot_all_minima'])
 
         # Construct x-axis for pmin plot based on forecast initialization date
         xax=[x*3 for x in fcsteps]
@@ -95,14 +95,15 @@ def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
 
 
 
-
-
-def create_tc_track(ax,data,plot_var,fcsteps,icol,buff=[],ens_show=False,buff_alpha=[],fig_markers=[]):
+def create_tc_track(ax,data,plot_var,fcsteps,icol,buff=[],ens_show=False,buff_alpha=[],fig_markers=[],plot_all_mins=[]):
     "Find and construct the TC track from the data"
 
     lons=[]
     lats=[]
     pmin=[]
+
+    lonsss=[]
+    latsss=[]
 
     for fcstep in fcsteps:
         # Do a slice north of 10N since there is another low in the area
@@ -117,8 +118,10 @@ def create_tc_track(ax,data,plot_var,fcsteps,icol,buff=[],ens_show=False,buff_al
         else:
             pmin.append(float('nan'))
 
-        #lonss,latss=find_pressure_mins(data.isel(time=fcstep))
-        #print(lonss,latss)
+        if plot_all_mins:
+            lonss,latss=find_pressure_mins(data.isel(time=fcstep))
+            lonsss.append(lonss)
+            latsss.append(latss)
 
     # Calculate distance between points
     #trackpoint_prev=[]
@@ -160,6 +163,13 @@ def create_tc_track(ax,data,plot_var,fcsteps,icol,buff=[],ens_show=False,buff_al
     if fig_markers:
         ax.scatter(lons,lats,s=65,marker='x',c=icol)
 
+    if plot_all_mins:
+        # Create colours
+        cccols=sns.color_palette(n_colors=len(lonsss))
+
+        for iii in range(0,len(lonsss)):
+            ax.scatter(lonsss[iii],latsss[iii],c=cccols[iii],alpha=0.3)
+
     # Plot a buffer around the track
     if buff and plot_var['ens']=="member":
         track_buffer=track.buffer(buff)
@@ -198,15 +208,15 @@ def find_pressure_mins(data):
     lons=[]
     lats=[]
 
-    for ii in range(0,1000):
+    for ii in range(0,100):
         # Find the value
         pmin=data.min().values
 
         # Find the data point
         ploc=data.where(data==pmin,drop=True)
 
-        lons.append(ploc['lon'].values)
-        lats.append(ploc['lat'].values)
+        lons.append(float(ploc['lon'].values[0]))
+        lats.append(float(ploc['lat'].values[0]))
 
         # Fill the pmin point
         data.loc[dict(lon=ploc['lon'],lat=ploc['lat'])]=float("nan")
