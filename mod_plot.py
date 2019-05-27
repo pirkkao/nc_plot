@@ -738,6 +738,8 @@ def col_maps(var,clevs):
         cmap=[sns.color_palette("viridis",clevs-10),sns.cubehelix_palette(start=2.7, light=1, as_cmap=True, n_colors=clevs)]
     elif var=='TESTI':
         cmap=[sns.color_palette("winter",clevs),sns.cubehelix_palette(start=2.7, light=1, as_cmap=True, n_colors=clevs)]
+    elif var=='MYVARIABLE':
+        cmap=[sns.color_palette("winter",clevs),sns.cubehelix_palette(start=2.7, light=1, as_cmap=True, n_colors=clevs)]
     else:
         cmap=[sns.color_palette("RdBu_r",clevs),sns.cubehelix_palette(start=2.7, light=1, as_cmap=True, n_colors=clevs)]
 

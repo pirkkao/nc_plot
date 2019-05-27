@@ -181,7 +181,12 @@ def parse_plot_dict(mydict):
         except KeyError:
             pass
         else:
-            sub_dict[key]=eval(tmp[key])
+            try:
+                eval(tmp[key])
+            except SyntaxError:
+                sub_dict[key]=False
+            else:
+                sub_dict[key]=eval(tmp[key])
 
 
     # Parse score_plot
