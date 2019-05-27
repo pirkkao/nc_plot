@@ -49,7 +49,8 @@ def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
         # Plot forecast low track
         pmins=create_tc_track(ax1,data,plot_vars[icol],fcsteps,cols[icol],buff=plot_dict['fig_ens_buff'],\
                                   ens_show=plot_dict['fig_ens_show'],buff_alpha=plot_dict['fig_ens_alpha'],\
-                                  fig_markers=plot_dict['fig_markers'],plot_all_mins=plot_dict['fig_plot_all_minima'])
+                                  fig_markers=plot_dict['fig_markers'],plot_all_mins=plot_dict['fig_plot_all_minima'],\
+                                  fig_ens_alpha=plot_dict['fig_ens_alpha'])
 
         # Construct x-axis for pmin plot based on forecast initialization date
         xax=[x*3 for x in fcsteps]
@@ -95,7 +96,8 @@ def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
 
 
 
-def create_tc_track(ax,data,plot_var,fcsteps,icol,buff=[],ens_show=False,buff_alpha=[],fig_markers=[],plot_all_mins=[]):
+def create_tc_track(ax,data,plot_var,fcsteps,icol,buff=[],ens_show=False,buff_alpha=[],fig_markers=[],\
+                        plot_all_mins=[],fig_ens_alpha=[]):
     "Find and construct the TC track from the data"
 
     lons=[]
@@ -145,7 +147,10 @@ def create_tc_track(ax,data,plot_var,fcsteps,icol,buff=[],ens_show=False,buff_al
 
     # Plot the track
     if buff and plot_var['ens']=="member":
-        alpha=0.2
+        if not fig_ens_alpha:
+            alpha=0.2
+        else:
+            alpha=float(fig_ens_alpha)
     else:
         alpha=0.7
 

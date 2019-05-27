@@ -174,7 +174,8 @@ def parse_plot_dict(mydict):
 
 
     # Figure size, nrows, ncols, contour levels
-    for key in ['fig_size','fig_nrow','fig_ncol','fig_cf_levs','fig_c_levs']:
+    for key in ['fig_size','fig_nrow','fig_ncol','fig_cf_levs','fig_c_levs','fig_markers',\
+                'fig_ens_show','fig_ens_buff']:
         try:
             tmp[key]
         except KeyError:
