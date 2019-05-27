@@ -1,0 +1,149 @@
+#**************************************************************
+[DEFAULT]
+#**************************************************************
+
+
+
+#**************************************************************
+[DATA]
+#**************************************************************
+#
+# Create a dictionary for each data source you want to 
+# visualize
+#
+# 'exps'  : model forecast experiment identifier
+#
+# 'snames': short nicknames for the experiments
+#
+# 'dates' : forecast initialization dates
+#
+# 'types' : what to plot
+#            p000/ctrl : control forecast
+#            p001      : ensemble member 1
+#            p002      : ensemble member 2
+#            ...       : ...
+#            ensmean   : ensemble mean
+#            ensstd    : ensemble standard deviation
+#            ensmemb   : construct a list of ensemble member 
+#	     	       	 names, size indicated with 'nmem' : N.
+# 
+exps   = hands-on-6
+snames = ex6
+paths  = /wrk/ollinaho/DONOTREMOVE/public/
+dates  = 2017103112
+types  = ensmean
+
+
+
+#**************************************************************
+[AN] 
+#**************************************************************
+
+
+
+#**************************************************************
+[variables]
+#**************************************************************
+# Give variables as 
+# "name,level" (if on vertical levels)
+# "name"       (if on surface)
+#
+# Defining only one variable when multiple data sources
+# are open will result in the same variable being used
+# for all data sources.
+#
+# If plotting the cyclone tracks, all the elements will be filled
+# with MSL according to the number of opened data sources.
+
+var0 = MSL
+
+
+#**************************************************************
+[operations]
+#**************************************************************
+
+
+
+#**************************************************************
+[scores]
+#**************************************************************
+
+
+
+#**************************************************************
+[save_data]
+#**************************************************************
+
+time_mean=False
+
+
+
+#**************************************************************
+[plot]
+#**************************************************************
+# Create a configuration dictionary
+#
+# 'fig_name'   : unique identifier for the produced plot 
+#                (.pdf added to this name)
+#
+# 'lonlat'     : area to be plotted 
+#                "global" for global
+#                "" for automatic area choosing according to data
+#                [98.55,129.6,3.13796,23.75884] for an area
+#
+# 'minmax'     : find data min/max values over different forecast lengths
+#                "abs" - get the absolute min/max values from all similar fields
+#                "rel" - get the relative min/max for each individual field
+#                "nan" - don't calculate min/max values
+#
+# 'fcsteps'    : forecast lengths to be plotted (choose "all"
+#                for plotting all available timesteps)
+#
+# 'plot_type'  : 
+#                "2dmap" - plot a 2D map for each variable and forecast step defined
+#                "mvar"  - plot multimple variables into the same plot,
+#                          1st variable will be made with contour, 2nd with contourf
+#                "track" - plot a simple tropical cyclone track
+#
+
+fig_name=test_3A
+
+plot_type=2dmap
+
+lonlat=[99.,129.,3.2,23.6]
+
+fcsteps=12/to/48/by/12
+data_fcstep_len=3
+
+
+# Define figure physical dimensions (size) and layout (ncol x nrow).
+# If left blank, default settings will used and ncol is defined to equal
+# number of variables to be plotted.
+#
+fig_size=(12,8)
+#fig_nrow=1
+#fig_ncol=1
+
+# Define number of contourf (cf_levs) and contour levels (c_levs), and
+# colour of contour lines.
+fig_cf_levs=20
+fig_c_levs=30
+fig_c_col=black
+
+
+#**************************************************************
+[score_plot]
+#**************************************************************
+     
+
+
+#**************************************************************
+[2dmap]
+#**************************************************************
+
+
+
+#**************************************************************
+[mvar]
+#**************************************************************
+

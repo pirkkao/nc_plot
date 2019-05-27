@@ -136,31 +136,41 @@ def parse_plot_dict(mydict):
     sub_dict={s:tmp[s] for s in tmp}
 
     # Eval lonlat if not "global"
-    if sub_dict['lonlat']!="global":
-        sub_dict['lonlat']=eval(sub_dict['lonlat'])
+    try:
+        sub_dict['lonlat']!="global"
+    except KeyError:
+        pass
+    else:
+        if sub_dict['lonlat']!="global":
+            sub_dict['lonlat']=eval(sub_dict['lonlat'])
 
 
     # Special treatment for forecast length
-    try:
-        tmp['fcsteps'].split('/')[1]
-    except IndexError:
-        sub_dict['fcsteps']=eval(tmp['fcsteps'])
+    try: 
+        tmp['fcsteps']
+    except KeyError:
+        pass
     else:
-        tmp_step=tmp['fcsteps'].split('/')
+        try:
+            tmp['fcsteps'].split('/')[1]
+        except IndexError:
+            sub_dict['fcsteps']=eval(tmp['fcsteps'])
+        else:
+            tmp_step=tmp['fcsteps'].split('/')
 
-        isteps=[]
+            isteps=[]
 
-        step=int(tmp_step[0])
-        last_step=int(tmp_step[2])
+            step=int(tmp_step[0])
+            last_step=int(tmp_step[2])
 
-        while step <= last_step:
+            while step <= last_step:
 
-            # Construct indexes
-            isteps.append(int(step/eval(tmp['data_fcstep_len'])))
+                # Construct indexes
+                isteps.append(int(step/eval(tmp['data_fcstep_len'])))
 
-            step=step+int(tmp_step[4])
-            
-        sub_dict['fcsteps']=isteps
+                step=step+int(tmp_step[4])
+
+            sub_dict['fcsteps']=isteps
 
 
     # Figure size, nrows, ncols, contour levels
@@ -194,13 +204,14 @@ def parse_plot_dict(mydict):
         sub_dict['time']=time
 
 
-    # Special treatment for CRPS plotting
-    try:
-        score_plot['crps']
-    except KeyError:
-        sub_dict['crps']=False
-    else:
-        sub_dict['crps']=eval(score_plot['crps'])
+    # Special treatment for CRPS plotting and time mean
+    for key in ["crps","time_mean"]:
+        try:
+            score_plot[key]
+        except KeyError:
+            sub_dict[key]=False
+        else:
+            sub_dict[key]=eval(score_plot[key])
 
     return sub_dict
 
@@ -495,7 +506,8 @@ def create_paths(main_dict,plot_vars):
             for fnam in fnames:
                 for date in dates:
                     # Iterate over variables if a single input source open
-                    if len(fnames)==1 and len(dates)==1:
+                    # UNLESS AN
+                    if len(fnames)==1 and len(dates)==1 and fnam!="an_pl":
                         for pvar in plot_vars:
                             d_path.append(basepath+exp+"/"+date+"/"+fnam+".nc")
                             

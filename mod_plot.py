@@ -29,7 +29,7 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 
-def plot_master(data_struct,plot_dict,plot_vars,minmax):
+def plot_master(data_struct,plot_dict,plot_vars,operators,minmax):
 
     # Open a pdf to plot to
     with PdfPages(plot_dict['fig_name']+'.pdf') as pdf:
@@ -106,6 +106,14 @@ def plot_master(data_struct,plot_dict,plot_vars,minmax):
             # Save the plot to the pdf and open a new pdf page
             #pdf.savefig()
             #plt.close()
+
+        elif plot_dict['plot_type']=="score_diff":
+            
+            plot_score_comparison_detailed(data_struct,plot_dict,operators,plot_vars)
+            
+            # Save the plot to the pdf and open a new pdf page
+            pdf.savefig()
+            plt.close()
 
 
 
@@ -277,6 +285,115 @@ def plot_scores3(time,data_struct,plot_dict,plot_vars,minmax):
                 plot_legend(legend_cols,legend_names,bbox_loc=(0.3,1.,0,0))
 
             ax[iarea*ntime+itime].set_title(areas[iarea])
+
+
+
+def plot_score_comparison_detailed(data_struct,plot_dict,operators,plot_vars):
+
+
+    # Create plots
+    fig2,ax2=plt.subplots(5,2,figsize=(15,15))
+
+    # Create colors
+    cmap=plt.get_cmap('Set1')
+
+    # Setup
+    all_varis=[]
+    all_times=[]
+
+    # Areas
+    areas=[[-90,-20],[-20,20],[20,90]]
+    sareas=['SH',     'TR',   'NH']
+
+    # Time ranges
+    time_ranges=[[1,8],[8,16],[16,24],[24,32],[32,41]]
+
+    # Construct variable name list
+    variable_list=[]
+    for var in plot_vars:
+        variable_list.append(str(var['vars'][0])+str(var['nlevs'][0]))
+
+    var_size=len(variable_list)
+
+    # Construct ensemble sizes
+    sizes=[]
+    for oper in operators:
+        sizes.append(len(oper[2]))
+
+    # Calculate size of input data 
+    data_size=int(len(sizes)*var_size)
+
+    # Calculate number of dates
+    date_size=int(len(data_struct)/(data_size))
+
+    print("SIZZES")
+    print(len(data_struct),len(sizes),var_size,data_size,date_size)
+
+
+    isize=0
+    for M in sizes:
+
+        for idate in range(0,date_size):
+            # Set intentation to plots for better distinguishing between variables
+            xintent=-0.003
+
+            for ivar in range(0,var_size):
+                index = ivar + idate*var_size + isize*var_size*date_size
+                print(isize,idate,ivar,index)
+                ############
+                dd=data_struct[index][0]
+                ee=data_struct[index][1]
+
+                #print(data_struct[ivar*len(sizes) + isize][0])
+
+                iarea=0
+                for jj in [0,2]:
+
+                    # Do NOT take areal mean yet
+                    DD=dd.sel(lat=slice(areas[jj][0],areas[jj][1]))
+                    EE=ee.sel(lat=slice(areas[jj][0],areas[jj][1]))
+
+                    # Do division on grid by grid basis
+                    FF=DD/EE
+
+                    # Plot against ens size as 1+1/M
+                    mval=1+1./M
+
+                    # Setup 1-1-line
+                    x=range(0,3)
+
+                    itime=0
+                    for time in time_ranges:
+                        #GG=FF.mean(['lon','lat'])
+                        GG=FF.isel(time=slice(time[0],time[1])).mean(['lon','lat'])
+
+                        HH=GG.mean(['time']).values
+                        GG=GG.values
+
+                        xx=[mval+xintent for i in GG.flatten()]
+                        XX=[mval         for i in GG.flatten()]
+
+                        xx2=[mval+xintent for i in HH.flatten()]
+
+                        ax2[itime][iarea].plot(x,x,linestyle='-',color='gray',alpha=0.7)
+                        #ax2[itime][iarea].scatter(xx,GG.flatten(),color=cmap.colors[ivar],\
+                        #                          alpha=0.6)
+                        ax2[itime][iarea].scatter(xx2,HH.flatten(),color=cmap.colors[ivar],\
+                                                  alpha=0.6)
+
+                        ax2[itime][iarea].set_xlim(1,1.15)
+                        ax2[itime][iarea].set_ylim(1,1.24)
+
+                        # Display forecast window
+                        ax2[itime][iarea].set_ylabel(str(time[0]*6)+"-"+str(time[1]*6-6),fontsize=16)
+
+                        itime+=1
+
+                    iarea+=1
+                xintent+=0.002
+
+        isize+=1
+
 
 
 
@@ -566,6 +683,10 @@ def get_varname(data):
     else:
         vname='T'
 
+    # Probably working now, remove the above later on
+
+    vname=data.name
+
     return vname
 
 
@@ -615,6 +736,8 @@ def col_maps(var,clevs):
         cmap=[sns.color_palette("cool",clevs),sns.cubehelix_palette(start=2.7, light=1, as_cmap=True, n_colors=clevs)]
     elif var=='TP':
         cmap=[sns.color_palette("viridis",clevs-10),sns.cubehelix_palette(start=2.7, light=1, as_cmap=True, n_colors=clevs)]
+    elif var=='TESTI':
+        cmap=[sns.color_palette("winter",clevs),sns.cubehelix_palette(start=2.7, light=1, as_cmap=True, n_colors=clevs)]
     else:
         cmap=[sns.color_palette("RdBu_r",clevs),sns.cubehelix_palette(start=2.7, light=1, as_cmap=True, n_colors=clevs)]
 

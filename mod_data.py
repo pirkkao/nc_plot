@@ -19,7 +19,7 @@ from mod_plot import get_varname
 # TEST THING
 
 
-def get_master(d_path,plot_vars,main_dict,operators,dataoper,savescore,parallel=False):
+def get_master(d_path,plot_vars,main_dict,operators,dataoper,savescore,plot_dict,parallel=False):
     "Either open raw nc-files for reading or fetch pre-calculated scores"
 
     # Open raw variable fields and do skill score calculations if requested
@@ -41,13 +41,16 @@ def get_master(d_path,plot_vars,main_dict,operators,dataoper,savescore,parallel=
     # OR load pre-calculated skill score fields
     #
     else:
+        print("LOADING DATA INSTEAD:")
         data_struct=[]
         for fname in savescore['fnames']:
             data_struct.append(get_score_data(fname,savescore['fpath']))
 
+            print(fname)
+
 
     # Do temporal averaging if requested
-    if savescore['time_mean']:
+    if plot_dict['time_mean']:
         data_struct=time_average(data_struct,main_dict,operators)
 
     return data_struct
@@ -376,6 +379,8 @@ def structure_for_plotting3(data,main_dict,operators):
             # No operations
             if operator[0]=='none':
                 tmp=data[index[0]]
+                if operator[3]:
+                    tmp.name=operator[3]
 
             # Divide by a constant
             if operator[0]=='div':
@@ -716,56 +721,59 @@ def get_minmax_layer(plot_dict,data_struct):
     "Variable level layer for finding min and max of the data, \
     fix min-max to be the same for same variables"
 
-    lgetmin=plot_dict['minmax']
-    steps=plot_dict['fcsteps']
+    # Skip if not plotting 2D maps
+    if plot_dict['plot_type']=='2dmap' or plot_dict['plot_type']=='mvar':
 
-    if lgetmin=="rel":
-        minmax=get_minmax(data_struct,steps)
+        lgetmin=plot_dict['minmax']
+        steps=plot_dict['fcsteps']
 
-    elif lgetmin=="abs":
+        if lgetmin=="rel":
+            minmax=get_minmax(data_struct,steps)
 
-        minmax=get_minmax(data_struct,steps)
+        elif lgetmin=="abs":
 
-        # Get variable names to check which elements are the same
-        vnames=[]
-        for data in data_struct:
-            vnames.append(get_varname(data))
-        
-        # Construct a boolean list telling which name elements are the same
-        # I'M SURE THIS COULD'VE BEEN DONE BETTER
-        # someone must've written a smart list element comparison function/routine
-        bool_list=[]
-        vcheck=[]
+            minmax=get_minmax(data_struct,steps)
 
-        for idata in range(0,len(vnames)):
-            nf=[]
-            for x in vnames:
-                if x==vnames[idata]:
-                    nf.append(True)
-                else:
-                    nf.append(False)
+            # Get variable names to check which elements are the same
+            vnames=[]
+            for data in data_struct:
+                vnames.append(get_varname(data))
 
-            # only save boolean list for the first unique appearance of a variable
-            if not vnames[idata] in vcheck:
-                vcheck.append(vnames[idata])
-                bool_list.append(nf)
+            # Construct a boolean list telling which name elements are the same
+            # I'M SURE THIS COULD'VE BEEN DONE BETTER
+            # someone must've written a smart list element comparison function/routine
+            bool_list=[]
+            vcheck=[]
 
-        # with the boolean list compare min/max values 
-        for ibool in range(0,len(bool_list)):
-            # Get the correct elements
-            elem=[i for i, x in enumerate(bool_list[ibool]) if x]
-            
-            # And finally get the abs min
-            minmax[elem,0]=min(minmax[elem,0])
-            minmax[elem,1]=max(minmax[elem,1])
+            for idata in range(0,len(vnames)):
+                nf=[]
+                for x in vnames:
+                    if x==vnames[idata]:
+                        nf.append(True)
+                    else:
+                        nf.append(False)
+
+                # only save boolean list for the first unique appearance of a variable
+                if not vnames[idata] in vcheck:
+                    vcheck.append(vnames[idata])
+                    bool_list.append(nf)
+
+            # with the boolean list compare min/max values 
+            for ibool in range(0,len(bool_list)):
+                # Get the correct elements
+                elem=[i for i, x in enumerate(bool_list[ibool]) if x]
+
+                # And finally get the abs min
+                minmax[elem,0]=min(minmax[elem,0])
+                minmax[elem,1]=max(minmax[elem,1])
 
 
-    elif lgetmin=="nan":
-        minmax=[]
-        for data in data_struct:
-            minmax.append([[],[]])
+        elif lgetmin=="nan":
+            minmax=[]
+            for data in data_struct:
+                minmax.append([[],[]])
 
-    return minmax
+        return minmax
 
 
 

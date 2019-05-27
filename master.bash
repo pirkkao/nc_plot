@@ -1,14 +1,14 @@
 #!/bin/bash
 #
-#SBATCH -J edasv399
-#SBATCH -t 12:00:00
+#SBATCH -J sv_rmse
+#SBATCH -t 10:00:00
 #SBATCH -n 4
 #SBATCH --mem-per-cpu=8000
 #
 #
 module load bioconda python-env/3.5.3 && export CONDA_ENVS_PATH=$WRKDIR/DONOTREMOVE/taito-conda-envs && source activate plot2
 
-exp=eda+sv_t399
+exp=sv_rmse
 
  date=2016120100
 edate=2017112600
@@ -59,10 +59,10 @@ while [ $date -le $edate ]; do
 done
 
 # What will be run
-parallel --dry-run python3 main.py {1} tmp ::: $joblist
+parallel --dry-run python3 main.py {1} data tmp ::: $joblist
 
 # Execute
-parallel --jobs $SLURM_NTASKS python3 main.py {1} tmp ::: $joblist
+parallel --jobs $SLURM_NTASKS python3 main.py {1} data tmp ::: $joblist
 
 # Clean-up
 #rm -f tmp/data.${exp}_*
