@@ -43,6 +43,8 @@ def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
 
     # Create colours
     cols=col_list_data(data_struct,plot_dict,plot_vars)
+
+    forecast_coords=[]
     
     ifc_diff=0
     icol=0
@@ -52,6 +54,9 @@ def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
                                   ens_show=plot_dict['fig_ens_show'],buff_alpha=plot_dict['fig_ens_alpha'],\
                                   fig_markers=plot_dict['fig_markers'],plot_all_mins=plot_dict['fig_plot_all_minima'],\
                                   fig_ens_alpha=plot_dict['fig_ens_alpha'])
+
+        # Append coords
+        forecast_coords.append(track_fc)
 
         # Construct x-axis for pmin plot based on forecast initialization date
         xax=[x*3 for x in fcsteps]
@@ -99,8 +104,11 @@ def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
     # DISTANCE
     print()
     print("FORECAST TC CENTER LOCATIONS")
-    for ii in range(0,len(track_fc[0])):
-        print(track_fc[0][ii],track_fc[1][ii])
+    
+    for track_fc in forecast_coords:
+        print()
+        for ii in range(0,len(track_fc[0])):
+            print(track_fc[0][ii],track_fc[1][ii])
 
     # Pick the last point only
     point1 = Point(track_fc[0][ii],track_fc[1][ii])
