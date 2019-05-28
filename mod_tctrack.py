@@ -8,10 +8,11 @@ import cartopy.feature as cfeature
 import cartopy.io.shapereader as shapereader
 import seaborn as sns
 import shapely.geometry as sgeom
-from shapely.geometry import Point
+from shapely.geometry import Point,LineString
 from datetime import datetime,timedelta
 from matplotlib.colors import ListedColormap
 from matplotlib.lines import Line2D as Line
+import math
 
 # import from local
 from mod_util import plot_legend, plot_features
@@ -47,7 +48,7 @@ def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
     icol=0
     for data in data_struct:
         # Plot forecast low track
-        pmins=create_tc_track(ax1,data,plot_vars[icol],fcsteps,cols[icol],buff=plot_dict['fig_ens_buff'],\
+        track_fc,pmins=create_tc_track(ax1,data,plot_vars[icol],fcsteps,cols[icol],buff=plot_dict['fig_ens_buff'],\
                                   ens_show=plot_dict['fig_ens_show'],buff_alpha=plot_dict['fig_ens_alpha'],\
                                   fig_markers=plot_dict['fig_markers'],plot_all_mins=plot_dict['fig_plot_all_minima'],\
                                   fig_ens_alpha=plot_dict['fig_ens_alpha'])
@@ -73,10 +74,10 @@ def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
     # Plot Damrey track
     if eval(plot_dict['fig_obs_track']):
         if eval(plot_dict['fig_obs_match_time']):
-            xax_obs,obs=tc_plot(ax1,'damrey_track.dat','red',buff=plot_dict['fig_obs_buff'],\
+            track_obs,xax_obs,obs=tc_plot(ax1,'damrey_track.dat','red',buff=plot_dict['fig_obs_buff'],\
                                     match_date_to=[dt0,fcsteps],fig_markers=plot_dict['fig_markers'])
         else:
-            tc_plot(ax1,'damrey_track.dat','red',buff=plot_dict['fig_obs_buff'],\
+            track_obs=tc_plot(ax1,'damrey_track.dat','red',buff=plot_dict['fig_obs_buff'],\
                         match_date_to=[],fig_markers=plot_dict['fig_markers'])
 
         # Plot Damrey observed pressure
@@ -93,6 +94,30 @@ def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
 
     # Plot map features
     plot_features(ax1,country=True,lam=True,lonlat=lonlat)
+
+
+    # DISTANCE
+    print()
+    print("FORECAST TC CENTER LOCATIONS")
+    for ii in range(0,len(track_fc[0])):
+        print(track_fc[0][ii],track_fc[1][ii])
+
+    # Pick the last point only
+    point1 = Point(track_fc[0][ii],track_fc[1][ii])
+
+    print()
+    print("OBSERVED TC CENTER LOCATIONS")
+    for ii in range(0,len(track_obs[0])):
+        print(track_obs[0][ii],track_obs[1][ii])
+
+    # Pick the last point only
+    point2 = Point(track_obs[0][ii],track_obs[1][ii])
+
+    # Distance between these two points
+    print()
+    print("DISTANCE OF LAST COORDINATES")
+    print(point1.distance(point2))
+
 
 
 
@@ -185,7 +210,7 @@ def create_tc_track(ax,data,plot_var,fcsteps,icol,buff=[],ens_show=False,buff_al
         ax.add_geometries([track_buffer], ccrs.PlateCarree(),
                           facecolor=icol, alpha=buff_alpha)
 
-    return pmin
+    return [lons,lats],pmin
 
 
 
@@ -292,7 +317,9 @@ def tc_plot(ax,data_path,edgecolor,buff,match_date_to=[],fig_markers=[]):
 
 
     if match_date_to:
-        return xax,pmins[ifc_diff:ifc_last+1]
+        return [lons,lats],xax,pmins[ifc_diff:ifc_last+1]
+    else:
+        return [lons,lats]
 
 
 
