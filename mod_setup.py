@@ -3,6 +3,8 @@ from __future__ import print_function
 import cartopy.crs as ccrs
 from datetime import datetime,timedelta
 
+import re
+
 import configparser
 from configparser import SafeConfigParser
 
@@ -387,9 +389,13 @@ def create_vars(pvars,main_dict,plot_dict):
                     md_types.append(typ)
                     md_exps.append(exp)
 
-                    if typ=="ensstd" or typ=="an_test":
+                    # Construct a wildcard for ensmean and std
+                    regex_mean=re.compile("ensmea.")
+                    regex_std =re.compile("ensst.")
+
+                    if re.match(regex_std,typ) or typ=="an_test":
                         typ_ens.append("ensstd")
-                    elif typ=="ensmean":
+                    elif re.match(regex_mean,typ):
                         typ_ens.append("ensmean")
                     elif typ=="ctrl" or typ=="p000":
                         typ_ens.append("ctrl")
