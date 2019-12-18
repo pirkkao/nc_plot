@@ -22,7 +22,7 @@ if not sys.warnoptions:
 
 
 
-def plot_legend(cols,legend_texts,plot_vars=[],plot_dict=[],bbox_loc=[]):
+def plot_legend(cols,legend_texts,legend_styles,plot_vars=[],plot_dict=[],bbox_loc=[]):
     "Plot legend box"
 
     # Default number of legend columns
@@ -47,9 +47,19 @@ def plot_legend(cols,legend_texts,plot_vars=[],plot_dict=[],bbox_loc=[]):
             ncols=2
             bbox_loc=(0.7,1.15,0,0)
 
+    if not legend_styles:
+        legend_styles=['-' for x in cols]
+
     # Create a legend
-    legend_artists = [Line([0], [0], color=color, linewidth=2)
-                      for color in cols]
+    istyle=0
+    legend_artists=[]
+    for color in cols:
+        legend_artists.append(Line([0], [0], color=color, linewidth=2, linestyle=legend_styles[istyle]))
+        istyle+=1
+
+    #legend_artists = [Line([0], [0], color=color, linewidth=2)
+    #                  for color in cols]
+
     if bbox_loc:
         legend = plt.legend(legend_artists, legend_texts, fancybox=True,
                             loc='upper right', framealpha=0.75,ncol=ncols,

@@ -22,6 +22,26 @@ from mod_plot import get_varname
 def get_master(d_path,plot_vars,main_dict,operators,dataoper,savescore,plot_dict,parallel=False):
     "Either open raw nc-files for reading or fetch pre-calculated scores"
 
+    # Create some index names for writing/loading temporal averages
+    try:
+        operators[0][0]
+    except IndexError:
+        pass
+    else:
+        if operators[0][0]=='crps':
+            tempo_name,indexing = create_names(main_dict,plot_vars,operators,savescore,\
+                                               main_dict[0]['snames'],['crps','fair'])
+        elif operators[0][0]=='rmse':
+            try:
+                main_dict[0]['expand_names']
+            except KeyError:
+                tempo_name,indexing = create_names(main_dict,plot_vars,operators,savescore,\
+                                                       main_dict[0]['snames'],['rmse','spread'])
+            else:
+                tempo_name,indexing = create_names(main_dict,plot_vars,operators,savescore,\
+                                                       main_dict[0]['snames'],"")
+
+
     # Open raw variable fields and do skill score calculations if requested
     #
     if not savescore['load_scores']:
@@ -34,13 +54,14 @@ def get_master(d_path,plot_vars,main_dict,operators,dataoper,savescore,plot_dict
             data_struct = structure_for_plotting2(data_struct,main_dict,operators,savescore)
             print("")
 
+        # Plot-related operations
         if dataoper:
             data_struct = structure_for_plotting3(data_struct,main_dict,dataoper)
             print("")
 
     # OR load pre-calculated skill score fields
     #
-    else:
+    elif not plot_dict['time_mean_load']:
         print("LOADING DATA INSTEAD:")
         data_struct=[]
         for fname in savescore['fnames']:
@@ -48,13 +69,102 @@ def get_master(d_path,plot_vars,main_dict,operators,dataoper,savescore,plot_dict
 
             print(fname)
 
+    # OR load temporally averaged score fields
+    else:
+        print("LOADING TIME AVERAGE")
+        data_struct=[]
+        for iexp in range(0,len(main_dict[0]['exps'])):
+            data_struct.append(get_score_data(tempo_name[iexp],""))
+
+        # Flatten
+        temp_list=[]
+        for iexp in data_struct:
+            for iscore in iexp:
+                temp_list.append(iscore)
+
+        data_struct=temp_list
 
     # Do temporal averaging if requested
-    if plot_dict['time_mean']:
-        data_struct=time_average(data_struct,main_dict,operators)
+    if plot_dict['time_mean'] and not plot_dict['time_mean_load']:
+
+        data_struct=time_average(data_struct,main_dict,operators,plot_vars)
+
+        # Save savescore['fpath']
+        save_score_data(tempo_name[0],"",data_struct,indexing)
 
     return data_struct
     
+
+
+def create_names(main_dict,plot_vars,operators,savescore,ffnames,sscores):
+
+    fnames=savescore['fnames']
+    fpath=savescore['fpath']
+
+    if len(operators) < len(ffnames):
+        print("*************************************")
+        print("AUTOMATICALLY EXPANDING OPERATOR LIST")
+        print(operators)
+        print("==>")
+
+        tmp_oper=[]
+        for ffname in ffnames:
+            for oper in operators:
+                tmp_oper.append(oper)
+
+        try:
+            main_dict[1]
+        except IndexError:
+            pass
+        else:
+            tmp_oper.append(['rmse',-1,0])
+        
+
+        #operators=tmp_oper
+
+        print(operators)
+        print("*************************************")
+
+    # Create indexes
+    indexing=[]
+    for operator in operators:
+
+        try:
+            len(operator[2])
+        except TypeError:
+            noper="0"
+        else:
+            noper=str(len(operator[2]))
+
+        for pvar in plot_vars:
+            if sscores:
+                for sscore in sscores:
+                    indexing.append(sscore+"_N"+noper+"_"+pvar['vars'][0]+str(pvar['nlevs'][0]))
+            else:
+                indexing.append(operator[0]+"_N"+noper+"_"+pvar['vars'][0]+str(pvar['nlevs'][0]))
+            
+
+        try:
+            main_dict[1]
+        except IndexError:
+            pass
+        else:
+            for pvar in plot_vars:
+                indexing.append('rmse'+"_N"+noper+"_"+pvar['vars'][0]+str(pvar['nlevs'][0]))
+
+    osize=len(indexing)/2
+
+    # Construct date count
+    dcount=len(fnames)/osize
+    dcount=dcount/len(main_dict[0]['exps'])
+
+    nam=[]
+    for ffname in ffnames:
+        nam.append(ffname+"_timeavg_of_M"+str(int(dcount))+".nc")
+
+    print(nam,indexing)
+
+    return nam,indexing
 
 
 
@@ -134,8 +244,8 @@ def get_data(data_path,plot_vars):
         data_reduced.name=item
 
         # Change pressure into hPa
-        if item2=='var151' or item2=='Z':
-            data_reduced=data_reduced/100.
+        #if item2=='var151' or item2=='Z':
+        #    data_reduced=data_reduced/100.
 
         # Change total accumulated precip to accumated over 3h time window
         if item2=='var228':
@@ -228,7 +338,11 @@ def save_score_data(dname,fpath,data_struct,nam_list):
     idata=0
     first=True
     for data in data_struct:
-        data=data.rename(nam_list[idata])
+        # Rename if requested
+        if nam_list:
+            data=data.rename(nam_list[idata])
+
+        # Open a file on the first write, then append
         if first:
             data.to_netcdf(fpath+dname,mode='w')
             first=False
@@ -317,7 +431,7 @@ def structure_for_plotting2(data,main_dict,operators,savescore):
                     crps,fair,crps1,crps2a,crps2b=calc_crps(data,index)
 
                     tmp=[crps,fair,crps1,crps2a,crps2b]
-                    fields=['crps','fair','crps1','crps2','crsp2b']
+                    fields=['crps','fair','crps1','crps2','crps2b']
 
                 if savescore['fnames']:
                     print("  Save to:",savescore['fpath'],\
@@ -819,45 +933,143 @@ def get_minmax(data_struct,steps):
 
 
 
-def time_average(data_struct,main_dict,operators):
+def time_average(data_struct,main_dict,operators,plot_vars):
 
     nexp=len(main_dict[0]['exps'])
     ndates=len(main_dict[0]['dates'])
     noper=len(operators)
+    nvars=len(plot_vars)
 
     dd=[]
 
     if operators[0][0]=='crps':
         nscores=2
     else:
-        nscores=1
+        nscores=1    
 
     print("\n","CALCULATING TIME MEAN","\n")
+    
+    exps=main_dict[0]['exps']
 
-    iexp=0
-    for exp in main_dict[0]['exps']:
+    try:
+        main_dict[0]['expand_names']
+    except KeyError:
+        # Auto generate an exp/oper-list
+        iexp=0
+        for exp in exps:
 
+            # Loop over different crps sizes in case of crps
+            ioper=0
+            for operator in operators:
+
+                try:
+                    len(operator[2])
+                except TypeError:
+                    oper=operator[0]
+                else:
+                    oper="N"+str(len(operator[2]))
+
+                # Loop over scores
+                for iscore in range(0,nscores):
+
+                    # Loop over variables, need to skip indexes because the read-in
+                    # order is different to what we'd want here 
+                    ivar=0
+                    for pvar in plot_vars:
+
+                        pv=pvar['vars'][0]+str(pvar['nlevs'][0])
+
+                        print("Averaging...")
+                        idate=0
+                        idd=0
+
+                        # Loop over dates
+                        for date in main_dict[0]['dates']:
+
+                            index=ndates*noper*nvars*iexp + ndates*nvars*ioper + idate*nvars + ivar
+
+                            print("INDEX:",index,"OPER",oper,\
+                                      "ISCORE:",iscore,"DATE:",date,"VAR:",pv)
+
+                            idd = idd + data_struct[index][iscore]
+
+                            idate+=1
+
+                        # Take the average 1/n
+                        idd=idd/ndates
+
+                        dd.append(idd)
+
+                        ivar+=1
+                ioper+=1
+            iexp+=1
+
+
+    else:        
+        # Auto generate an exp/oper-list
+        iexp=0
         ioper=0
-        for operator in operators:
+        first=True
+
+        for exp in exps:
+
+            # Increase iexp when name of the exp changes
+            if first:
+                first=False
+                prev_exp=exp
+
+            elif prev_exp!=exp:
+                iexp+=1
+
+                prev_exp=exp
+
+
+            operator=operators[ioper]
+
+            try:
+                len(operator[2])
+            except TypeError:
+                oper=operator[0]
+            else:
+                oper="N"+str(len(operator[2]))
 
             # Loop over scores
             for iscore in range(0,nscores):
-                print("Averaging...")
-                idate=0
-                idd=0
 
-                for date in main_dict[0]['dates']:
+                # Loop over variables, need to skip indexes because the read-in
+                # order is different to what we'd want here 
+                ivar=0
+                for pvar in plot_vars:
 
-                    print("INDEX:",ndates*noper*iexp + ndates*ioper + idate,"DATE:",date,"ISCORE:",iscore)
-                    idd = idd + data_struct[ndates*noper*iexp + ndates*ioper + idate][iscore]
+                    pv=pvar['vars'][0]+str(pvar['nlevs'][0])
 
-                    idate+=1
+                    print("Averaging...")
+                    idate=0
+                    idd=0
 
-                idd=idd/ndates
-            
-                dd.append(idd)
+                    # Loop over dates
+                    for date in main_dict[0]['dates']:
 
-            ioper+=1
-        iexp+=1
+                        #index=ndates*noper*nvars*iexp + ndates*nvars*ioper + idate*nvars + ivar
+                        index=ndates*nvars*ioper + idate*nvars + ivar
+
+                        print("INDEX:",index,"OPER",oper,\
+                                  "ISCORE:",iscore,"DATE:",date,"VAR:",pv)
+
+                        #print(exp,iexp,"/",nexp,ioper,"/",noper,ivar,idate,index)
+
+                        idd = idd + data_struct[index][iscore]
+
+
+                        idate+=1
+
+                    # Take the average 1/n
+                    idd=idd/ndates
+
+                    dd.append(idd)
+
+                    ivar+=1
+                ioper+=1
+
 
     return dd

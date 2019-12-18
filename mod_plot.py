@@ -12,7 +12,11 @@ from shapely.geometry import Point
 from datetime import datetime,timedelta
 from matplotlib.colors import ListedColormap
 from matplotlib.lines import Line2D as Line
+from matplotlib import cm
 from matplotlib.backends.backend_pdf import PdfPages
+from tkinter import *
+
+import re
 
 # import from mod_tctrack (change to util?)
 #from mod_tctrack import tc_plot
@@ -78,38 +82,171 @@ def plot_master(data_struct,plot_dict,plot_vars,operators,minmax):
 
             # If CRPS divide CRPS and fair-CRPS plots
             if plot_dict['crps']:
-                data= data_struct[0:-1:2]
-                data2=data_struct[1:len(data_struct):2]
+
+                data1=[]
+                data2=[]
+                
+                #if 
+                for data in data_struct:
+
+                    print(data.name)
+
+                    # Construct a wildcard for crps and fair
+                    regex_crps=re.compile("crps_N.")
+                    regex_fair=re.compile("fair_N..")
+
+                    if re.match(regex_crps,data.name):
+                        data1.append(data)
+                    elif re.match(regex_fair,data.name):
+                        data2.append(data)
+
+                    # Or check for exact matches
+                    if data.name == 'crps':
+                        data1.append(data)
+                    elif data.name == 'fair':
+                        data2.append(data)
+                    elif data.name == 'rmse':
+                        data1.append(data)
+                    elif data.name == 'spread':
+                        data2.append(data)
+
+            elif plot_dict['crps_detailed']:
+                data1=data_struct
+                data2=[]
             else:
-                data= data_struct
+                data1= data_struct[0]
                 data2=[]
 
-            # Call plotting
-            plot_scores3(plot_dict['fcsteps'],data,plot_dict,plot_vars,minmax)
+            nvars=4
+
+            dataX=data1
+            dataY=data2
+
+            for ivar in range(0,nvars):
+                data1=dataX[ivar:len(dataX)+1:nvars]
+                data2=dataY[ivar:len(dataX)+1:nvars]
+
+
+                print(len(data1),len(data2))
+
+                # Call plotting
+                plot_scores3(plot_dict['fcsteps'],data1,plot_dict,plot_vars,minmax)
+
+                # Save the plot to the pdf and open a new pdf page
+                pdf.savefig()
+                plt.close()
+
+                if data2:
+                    # Call plotting
+                    plot_scores3(plot_dict['fcsteps'],data2,plot_dict,plot_vars,minmax)
+
+                    # Save the plot to the pdf and open a new pdf page
+                    pdf.savefig()
+                    plt.close()
+
+
+        # Plot date by date comparison of CPRS and FAIR
+
+        elif plot_dict['plot_type']=="detail_comparison":
+            
+            data_crps=[]
+            data_fair=[]
+
+            for data in data_struct:
+                
+                data_crps.append(data[0])
+                data_fair.append(data[1])
+
+
+            plot_date_comparison(data_crps,data_fair,plot_dict,operators,plot_vars)
+
 
             # Save the plot to the pdf and open a new pdf page
             pdf.savefig()
             plt.close()
 
-            if data2:
+
+
+        # PLOT SCORES
+        elif plot_dict['plot_type']=="score_rmse":
+
+            data1=[]
+            data2=[]
+                
+            for data in data_struct:
+
+                print(data.name)
+
+                # Or check for exact matches
+                if data.name == 'rmse':
+                    data1.append(data)
+                elif data.name == 'spread':
+                    data2.append(data)
+
+            nvars=4
+
+            dataX=data1
+            dataY=data2
+
+            for ivar in range(0,nvars):
+                data1=dataX[ivar:len(dataX)+1:nvars]
+                data2=dataY[ivar:len(dataX)+1:nvars]
+
                 # Call plotting
-                plot_scores3(plot_dict['fcsteps'],data2,plot_dict,plot_vars,minmax)
+                plot_scores4(plot_dict['fcsteps'],data1,data2,plot_dict,plot_vars,minmax)
+
 
                 # Save the plot to the pdf and open a new pdf page
                 pdf.savefig()
                 plt.close()
 
 
-            # Call plotting
-            #plot_scores2(plot_dict['fcsteps'],data_struct,plot_dict,plot_vars,minmax)
+        elif plot_dict['plot_type']=="fair_exps":
 
-            # Save the plot to the pdf and open a new pdf page
-            #pdf.savefig()
-            #plt.close()
+
+            data1=[]
+                
+            for data in data_struct:
+
+                # Construct a wildcard for crps and fair
+                if plot_dict['crps']:
+                    regex_fair=re.compile("crps_N"+plot_dict['fair_count'][0]+"_..")
+                else:
+                    regex_fair=re.compile("fair_N"+plot_dict['fair_count'][0]+"_..")
+
+                if re.match(regex_fair,data.name):
+                    data1.append(data)
+
+
+            nvars=4
+
+            dataX=data1
+
+            for ivar in range(0,nvars):
+                data1=dataX[ivar:len(dataX)+1:nvars]
+
+                for data in data1:
+                    print(data.name)
+
+                plot_scores3(plot_dict['fcsteps'],data1,plot_dict,plot_vars,minmax)
+
+                # Save the plot to the pdf and open a new pdf page
+                pdf.savefig()
+                plt.close()
+
 
         elif plot_dict['plot_type']=="score_diff":
             
             plot_score_comparison_detailed(data_struct,plot_dict,operators,plot_vars)
+            
+            # Save the plot to the pdf and open a new pdf page
+            pdf.savefig()
+            plt.close()
+
+
+        elif plot_dict['plot_type']=="score_diff_avg":
+            
+            plot_score_comparison(data_struct,plot_dict,operators,plot_vars)
             
             # Save the plot to the pdf and open a new pdf page
             pdf.savefig()
@@ -252,7 +389,13 @@ def plot_scores3(time,data_struct,plot_dict,plot_vars,minmax):
     print("CREATING FIGURE")
 
     areas=plot_dict['areas']
-    time= plot_dict['time']
+    try:
+        plot_dict['time']
+    except KeyError:
+        time=[range(0,41)]
+    else:
+        time= plot_dict['time']
+
     ntime=len(time)
 
     # Create a figure
@@ -267,6 +410,10 @@ def plot_scores3(time,data_struct,plot_dict,plot_vars,minmax):
 
     legend_cols= plot_dict['legend_cols']
     legend_names=plot_dict['legend_names']
+    legend_styles=plot_dict['legend_styles']
+
+    #for data in data_struct:
+    #    print(data.name,data.time)
 
     # Loop over FC lengths
     for itime in range(0,ntime):
@@ -281,15 +428,154 @@ def plot_scores3(time,data_struct,plot_dict,plot_vars,minmax):
 
                 idata+=1
 
+            # Loop over data
+            #idata=0
+            #for data in data_struct[1]:
+            #    call_score(ax[iarea*ntime+itime],data,areas[iarea],time[itime],cols[idata],styles[idata+5])
+
+            #    idata+=1
+
             if itime==0 and iarea==0:
-                plot_legend(legend_cols,legend_names,bbox_loc=(0.3,1.,0,0))
+                #plot_legend(legend_cols,legend_names,legend_styles,bbox_loc=(-1.45,0.3,0.,0.))
+                plot_legend(legend_cols,legend_names,legend_styles,bbox_loc=(0.25,1.,0,0))
+
+            if 1==1:
+                ax[iarea*ntime+itime].set_xticks([0,24,48,72,96,120,144,168,192,216,240])
+                ax[iarea*ntime+itime].set_xticklabels([0,24,48,72,96,120,144,168,192,216,240])
+
+            # LABELS
+            ax[iarea*ntime+itime].set_title("")
+            if 1==1:
+                ax[iarea*ntime+itime].set_xlabel("FORECAST LENGTH IN HOURS")
+                ax[iarea*ntime+itime].set_ylabel("RMSE/SPREAD")
+                ax[iarea*ntime+itime].set_ylabel("FAIR CPRS")
+                                
+
+
+            # YLIMS
+            if 1==0:
+                ax[iarea*ntime+itime].set_title(areas[iarea])
+            #if itime==ntime-1:
+            if 1==0:
+                if itime == 0:
+                    #ax[iarea*ntime+itime].set_ylim(0.2,0.9)
+                    #ax[iarea*ntime+itime].set_ylim(0.2,0.95)
+                    ax[iarea*ntime+itime].set_ylim(0.2,0.8)
+                elif itime == 1:
+                    #ax[iarea*ntime+itime].set_ylim(0.85,1.55)
+                    #ax[iarea*ntime+itime].set_ylim(0.85,1.7)
+                    ax[iarea*ntime+itime].set_ylim(0.65,1.4)
+                elif itime == 2:
+                    #ax[iarea*ntime+itime].set_ylim(1.5,2.4)
+                    #ax[iarea*ntime+itime].set_ylim(1.5,2.55)
+                    ax[iarea*ntime+itime].set_ylim(1.15,2.2)
+
+            if 1==0:
+                if iarea == 0:
+                    ax[iarea*ntime+itime].set_ylim(0.2,0.85)
+                elif iarea == 2:
+                    ax[iarea*ntime+itime].set_ylim(0.85,1.55)
+                elif iarea==1:
+                    ax[iarea*ntime+itime].set_ylim(1.55,2.4)
+                
+
+
+
+def plot_scores4(time,data_struct,data_struct2,plot_dict,plot_vars,minmax):
+    "Plot scores values as a function of forecast lead time"
+
+    print()
+    print("CREATING FIGURE")
+
+    areas=plot_dict['areas']
+    try:
+        plot_dict['time']
+    except KeyError:
+        time=[range(0,41)]
+    else:
+        time= plot_dict['time']
+
+    ntime=len(time)
+    print(ntime,time,time[0])
+
+    # Create a figure
+    #fig,ax=plt.subplots(nrows=len(areas),ncols=ntime,figsize=plot_dict['fig_size'])
+    fig,ax=plt.subplots(nrows=ntime,ncols=len(areas),figsize=plot_dict['fig_size'])
+
+    # Fix the axis handle to be simply ax[0]
+    ax=fix_ax(ax)
+    #plt.tight_layout()
+    
+    cols=  plot_dict['cols']
+    styles=plot_dict['styles']
+
+    legend_cols= plot_dict['legend_cols']
+    legend_names=plot_dict['legend_names']
+    legend_styles=plot_dict['legend_styles']
+
+    #for data in data_struct:
+    #    print(data.name,data.time)
+
+    # Loop over FC lengths
+    for itime in range(0,ntime):
+
+        # Loop over areas
+        for iarea in range(0,len(areas)):
+
+            print(itime,iarea)
+
+            # Loop over data
+            idata=0
+            for data in data_struct:
+                call_score(ax[iarea*ntime+itime],data,areas[iarea],time[itime],cols[idata],styles[idata])
+
+                idata+=1
+
+            # Loop over data
+            idata=0
+            for data in data_struct2:
+                call_score(ax[iarea*ntime+itime],data,areas[iarea],time[itime],cols[idata],'--')
+
+                idata+=1
+
+
+            # Loop over data
+            #idata=0
+            #for data in data_struct[1]:
+            #    call_score(ax[iarea*ntime+itime],data,areas[iarea],time[itime],cols[idata],styles[idata+5])
+
+            #    idata+=1
+
+            if itime==0 and iarea==0:
+                plot_legend(legend_cols,legend_names,legend_styles,bbox_loc=(0.3,1.,0,0))
 
             ax[iarea*ntime+itime].set_title(areas[iarea])
+
+            if 1==1:
+                ax[iarea*ntime+itime].set_xticks([0,24,48,72,96,120,144,168,192,216,240])
+                ax[iarea*ntime+itime].set_xticklabels([0,24,48,72,96,120,144,168,192,216,240])
+
+            # LABELS
+            ax[iarea*ntime+itime].set_title("")
+            if 1==1:
+                ax[iarea*ntime+itime].set_xlabel("FORECAST LENGTH IN HOURS")
+                ax[iarea*ntime+itime].set_ylabel("RMSE/SPREAD")
+                ax[iarea*ntime+itime].set_ylabel("FAIR CRPS")
+
+            # YLIMS
+            if 1==0:
+            #if itime==ntime-1:
+                if iarea == 0:
+                    ax[iarea*ntime+itime].set_ylim(0.5,3.0)
+                elif iarea == 2:
+                    ax[iarea*ntime+itime].set_ylim(0.5,4.0)
+                elif iarea==1:
+                    ax[iarea*ntime+itime].set_ylim(0.2,1.)
+
 
 
 
 def plot_score_comparison_detailed(data_struct,plot_dict,operators,plot_vars):
-
 
     # Create plots
     fig2,ax2=plt.subplots(5,2,figsize=(15,15))
@@ -326,7 +612,7 @@ def plot_score_comparison_detailed(data_struct,plot_dict,operators,plot_vars):
     # Calculate number of dates
     date_size=int(len(data_struct)/(data_size))
 
-    print("SIZZES")
+    print("SIZES")
     print(len(data_struct),len(sizes),var_size,data_size,date_size)
 
 
@@ -394,6 +680,291 @@ def plot_score_comparison_detailed(data_struct,plot_dict,operators,plot_vars):
 
         isize+=1
 
+
+
+def plot_date_comparison(data_crps,data_fair,plot_dict,operators,plot_vars):
+
+
+    fig3,ax3=plt.subplots(1,1)
+
+    # FC-WINDOW length
+    fclen=41
+
+    # Areas
+    areas=[[-90,-20],[-20,20],[20,90]]
+    sareas=['SH',     'TR',   'NH']
+    
+    # Construct variable name list
+    variable_list=[]
+    for var in plot_vars:
+        variable_list.append(str(var['vars'][0])+str(var['nlevs'][0]))
+
+    var_size=len(variable_list)
+
+    # Construct ensemble sizes
+    sizes=[]
+    for oper in operators:
+        sizes.append(len(oper[2]))
+
+    # Calculate size of input data 
+    data_size=int(len(sizes)*var_size)
+
+    # Calculate number of dates
+    date_size=int(len(data_crps)/(data_size))
+
+    print()
+    print("SIZES")
+    print(len(data_crps),len(sizes),var_size,data_size,date_size)
+
+    # LOADED DATA ORDER
+    # t639_eda+sv_2016120100_crps_N8_T4.nc
+    # t639_eda+sv_2016120100_crps_N8_Z3.nc
+    # ...
+    # t639_eda+sv_2016120900_crps_N8_T4.nc
+    # t639_eda+sv_2016120900_crps_N8_Z3.nc
+    # ...
+    # t639_eda+sv_2016120100_crps_N10_T4.nc
+    # t639_eda+sv_2016120100_crps_N10_Z3.nc
+    # ...
+    # 
+    # Size of a single M-set is therefore date_size*var_size
+
+    size_m=date_size*var_size
+
+    index_m=[]
+    index_mm=[]
+
+    # CONSTRUCT M for x-axis
+    for M in sizes:
+        print(M)
+
+        # index_m
+        for idate in range(0,date_size):
+            xintent=-0.0045
+            xintent=-0.009
+
+            for ivar in range(0,var_size):
+
+                # include time
+                xxint=-0.002
+                for itime in range(0,fclen):
+                    index_m.append(1+1./M+xintent+xxint)
+                    xxint+=0.0001
+
+                xintent+=0.003
+                xintent+=0.006
+
+
+        # index_mm
+        xintent=-0.006
+        xintent=-0.009
+        index_var=[]
+
+        for ivar in range(0,var_size):
+
+            index_time=[]
+            # include time
+            xxint=-0.002
+            for itime in range(0,fclen):
+                index_time.append(1+1./M+xintent+xxint)
+                xxint+=0.0001
+
+            index_var.append(index_time)
+            xintent+=0.004
+            xintent+=0.006
+
+        index_mm.append(index_var)
+
+        
+    #print(index_m)
+
+    crps_avg=[]
+    fair_avg=[]
+
+    print(data_crps[0])
+
+    for ddata in data_crps:
+        #crps_avg.append(ddata.sel(lat=slice(areas[0][0],areas[0][1])).mean(['lon','lat']))
+        crps_avg.append(ddata.isel(time=slice(0,42,1)).sel(lat=slice(areas[0][0],areas[0][1])).mean(['lon','lat']))
+
+    for ddata in data_fair:
+        #fair_avg.append(ddata.sel(lat=slice(areas[0][0],areas[0][1])).mean(['lon','lat']))
+        fair_avg.append(ddata.isel(time=slice(0,42,1)).sel(lat=slice(areas[0][0],areas[0][1])).mean(['lon','lat']))
+
+    print(crps_avg[0])
+
+    #ratio_avg=[]
+    #for idata in range(0,len(crps_avg)):
+    #    ratio_avg.append(crps_avg[idata]/fair_avg[idata])
+
+    #ax3.scatter(index_m,ratio_avg)
+
+    # DATE MEAN
+    crps_avg_dmean=[]
+    fair_avg_dmean=[]
+
+    index_date=0
+    ratio_fin=[]
+    for isize in range(0,len(sizes)):
+
+        ratio_vars=[]
+        for ivar in range(0,var_size):
+            
+            index_dates=[]
+            for idate in range(0,date_size):
+
+                # INDEX for dates of same variable and M
+                #print(isize,ivar,idate,isize*size_m+ivar+idate*var_size)
+                index_dates.append(isize*size_m+ivar+idate*var_size)
+                
+            ratio_vars.append(np.mean([crps_avg[i]/fair_avg[i] for i in index_dates],axis=0))
+
+        ratio_fin.append(ratio_vars)
+
+    print(index_dates)
+    print(ratio_vars)
+
+    #AA=[]
+    #for i in index_dates:
+    #    AA.append(crps_avg[i])
+
+    #BB=np.mean(AA,axis=0)
+
+
+    ratio_avg=[]
+    for idata in range(0,len(crps_avg)):
+        ratio_avg.append(crps_avg[idata]/fair_avg[idata])
+
+    #print(ratio_avg)
+    print(len(ratio_avg),len(index_m))
+
+    ax3.scatter(index_m,ratio_avg,color='gray')
+
+    print(len(ratio_fin[0]))
+    print(ratio_fin[0])
+    print(index_mm[0])
+
+    # Colormap
+    colmap=[]
+    for i in range(0,var_size):
+        colmap.append(cm.get_cmap('PuOr', fclen))
+
+    colmap=cm.get_cmap('PuOr', fclen)
+
+    #print(colmap.shape)
+    #print(np.squeeze(colmap).shape)
+
+    for i in range(0,len(sizes)):
+        for j in range(0,var_size):
+            ax3.scatter(index_mm[i][j],ratio_fin[i][j],color=colmap(range(fclen)),alpha=0.7)
+
+
+    # Setup 1-1-line
+    x=range(0,3)
+
+
+    ax3.plot(x,x,linestyle='-',color='gray',alpha=0.7)
+
+    #ax3.set_xlim(1,1.15)
+    #ax3.set_ylim(1,1.24)
+    ax3.set_xlim(1.02,1.08)
+    ax3.set_ylim(1,1.15)
+
+
+
+def plot_score_comparison(data_struct,plot_dict,operators,plot_vars):
+
+
+    fig3,ax3=plt.subplots(1,2)
+
+    # Areas
+    areas=[[-90,-20],[-20,20],[20,90]]
+    sareas=['SH',     'TR',   'NH']
+
+    # Cols
+    cols=['c','r','b','g']
+
+    x=range(1,4)
+    xmval=[1.,1+1./3.,1+1./2.]
+    xmval=[1.,1+1./3.**2,1+1./2.**2]
+    xmval=[1.,1+1./3*2.,1+1./2.*2]
+
+    xxx=[1.0,1.5]
+    yyy=[1.0,1.35]
+    print(x,xmval)
+
+    for data in data_struct:
+        print(data.name)
+
+    iarea=0
+    for jj in [0,2]:
+        ioper=0
+        for M in [8,10,12,20,50]:
+
+            # Plot against ens size as 1+1/M
+            mval=1+1./M
+
+            allFields=[]
+
+            xint=-0.005
+
+            for ivar in range(0,len(plot_vars)):
+            ############
+                print(jj,M,ivar,ioper*len(plot_vars),ivar+ioper*(len(plot_vars)+4))
+                print(jj,M,ivar,ioper*len(plot_vars),4+ivar+ioper*(len(plot_vars)+4))
+                dd=data_struct[0+ivar + ioper*(len(plot_vars)+4)]
+                ee=data_struct[4+ivar + ioper*(len(plot_vars)+4)]
+
+                # Average
+                #DD=dd.sel(lat=slice(areas[jj][0],areas[jj][1])).mean(['lon','lat'])
+
+                DD=dd.sel(lat=slice(areas[0][0],areas[0][1])).mean(['lon','lat'])
+
+                EE=ee.sel(lat=slice(areas[0][0],areas[0][1])).mean(['lon','lat'])
+                #print(ee.coords)
+                ##EE=ee.mean(['lon','lat'])
+
+                #EE=EE+ee.sel(lat=slice(areas[2][0],areas[2][1])).mean(['lon','lat'])
+                
+
+                # Do division on grid by grid basis
+                FF=DD/EE
+
+                #FF=FF.isel(time=slice(0,10))
+
+                allFields.append(FF)
+
+                #xx=[mval for i in allFields[0]]
+                xx=[mval+xint for i in FF.values]
+
+                ax3[iarea].scatter(xx,FF.values,color=cols[ivar],\
+                                       alpha=0.25)
+                   
+                xint+=0.0025
+
+            ax3[iarea].plot(x,x,linestyle='-',color='gray',alpha=0.7)
+            ax3[iarea].plot(x,xmval,linestyle='--',color='gray',alpha=0.7)
+            #ax3[iarea].scatter(xx,allFields[0],color='k',\
+            #                       alpha=0.6)
+
+
+            ioper+=1
+
+        ax3[iarea].set_xlim(1,1.2)
+        ax3[iarea].set_ylim(1,1.2)
+
+        # Add titles for some plots
+        ax3[iarea].set_title(sareas[jj])
+
+                # Remove ticks from all but bottom
+                #if itime < len(ax2)-1:
+                #    ax3[iarea].tick_params(labelbottom=False)
+
+                # Remove ticks from all but lefthandside figs
+                #if iarea > 0:
+                #    ax3[iarea].tick_params(labelleft=False)
+
+        iarea+=1
 
 
 
@@ -508,7 +1079,10 @@ def fix_ax(ax):
     try:
         ax[0]
     except TypeError:
-        pass
+        ax_tmp=[]
+        ax_tmp.append(ax)
+        ax=ax_tmp
+        return ax
     else:
         return ax
 

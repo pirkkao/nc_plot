@@ -85,38 +85,89 @@ def save_score_names(main_dict,operators,pvars,savescore):
 
     fname=[]
     if savescore['save_scores'] or savescore['load_scores']:
-        # Loop over experiment short names
-        for exp in main_dict[0]['snames']:
+        
+        #for sub_dict in main_dict:
+        if 1==1:
+            sub_dict=main_dict[0]
 
-            # Loop over skill score operators
-            for operator in operators:
-                otype=operator[0]
-                try:
-                    len(operator[2])
+            try:
+                sub_dict['expand_names']
+            except KeyError:
+                # AUTO COMPLETE SNAMES
+                # Loop over experiment short names
+                for exp in sub_dict['snames']:
 
-                except TypeError:
-                    # Names for RMSE and spread files
-                    ftype=main_dict[0]['types'][operator[2]]
-                    if ftype=='p000':
-                        N=otype+'_ctrl'
-                    elif ftype=='ensstd':
-                        N=otype
+                    if sub_dict['types'][0]=='ctrl':
+                        N='rmse_ctrl'
+
+                        # Loop over dates
+                        for date in sub_dict['dates']:
+
+                            # Loop over variables
+                            for var in pvars:
+                                vtype=var[0]
+                                lev=var[1]
+
+                                fname.append(exp+"_"+date+"_"+N+\
+                                             "_"+vtype+str(lev)+".nc")
+
                     else:
-                        N=otype+"_"+ftype
+                        # Loop over skill score operators
+                        ioper=0
+                        for operator in operators:
+                            otype=operator[0]
 
-                else:
-                    N=otype+"_N"+str(len(operator[2]))
+                            try:
+                                len(operator[2])
 
-                # Loop over dates
-                for date in main_dict[0]['dates']:
+                            except TypeError:
+                                # Names for RMSE and spread files
+                                ftype=sub_dict['types'][ioper]
+                                if ftype=='p000':
+                                    N=otype+'_ctrl'
+                                elif ftype=='ensstd':
+                                    N=otype
+                                elif ftype=='ensmean':
+                                    N='rmse_ensmean'
+                                else:
+                                    N=otype+"_"+ftype
 
-                    # Loop over variables
-                    for var in pvars:
-                        vtype=var[0]
-                        lev=var[1]
+                                ioper+=1
 
-                        fname.append(exp+"_"+date+"_"+N+\
-                                     "_"+vtype+str(lev)+".nc")
+                            else:
+                                N=otype+"_N"+str(len(operator[2]))
+
+
+                            # Loop over dates
+                            for date in sub_dict['dates']:
+
+                                # Loop over variables
+                                for var in pvars:
+                                    vtype=var[0]
+                                    lev=var[1]
+
+                                    fname.append(exp+"_"+date+"_"+N+\
+                                                 "_"+vtype+str(lev)+".nc")
+
+            else:
+                # EXPAND SNAMES "MANUALLY"
+                itype=0
+                for exp in sub_dict['snames']:
+
+                    N=sub_dict['types'][itype]
+                    itype+=1
+
+                    # Loop over dates
+                    for date in sub_dict['dates']:
+
+                        # Loop over variables
+                        for var in pvars:
+                            vtype=var[0]
+                            lev=var[1]
+
+                            fname.append(exp+"_"+date+"_"+N+\
+                                                 "_"+vtype+str(lev)+".nc")
+                    
 
     try:
         savescore['fnames']
@@ -213,7 +264,7 @@ def parse_plot_dict(mydict):
 
 
     # Special treatment for CRPS plotting and time mean
-    for key in ["crps","time_mean"]:
+    for key in ["crps","crps_detailed","time_mean","time_mean_load"]:
         try:
             score_plot[key]
         except KeyError:
@@ -518,8 +569,8 @@ def create_paths(main_dict,plot_vars):
             for fnam in fnames:
                 for date in dates:
                     # Iterate over variables if a single input source open
-                    # UNLESS AN
-                    if len(fnames)==1 and len(dates)==1 and fnam!="an_pl":
+                    # UNLESS AN or CTRL
+                    if len(fnames)==1 and len(dates)==1 and fnam!="an_pl" and fnam!="ctrl":
                         for pvar in plot_vars:
                             d_path.append(basepath+exp+"/"+date+"/"+fnam+".nc")
                             

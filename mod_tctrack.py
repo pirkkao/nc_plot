@@ -86,8 +86,8 @@ def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
                         match_date_to=[],fig_markers=plot_dict['fig_markers'])
 
         # Plot Damrey observed pressure
-        #if eval(plot_dict['fig_obs_match_time']):
-        #    ax2.plot(xax_obs,obs,color='r')
+        if eval(plot_dict['fig_obs_match_time']):
+            ax2.plot(xax_obs,obs,color='r')
     
 
     # Change x-tick properties
@@ -95,7 +95,7 @@ def plot_tctracks_and_pmin(data_struct,plot_dict,plot_vars):
     ax2.set_xlabel("Hours from "+str(dt0))
 
     # Legend
-    plot_legend(cols,[],plot_vars=plot_vars,plot_dict=plot_dict)
+    plot_legend(cols,[],[],plot_vars=plot_vars,plot_dict=plot_dict)
 
     # Plot map features
     plot_features(ax1,country=True,lam=True,lonlat=lonlat)
