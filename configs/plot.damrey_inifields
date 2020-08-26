@@ -27,11 +27,11 @@
 #            ensmemb   : construct a list of ensemble member 
 #	     	       	 names, size indicated with 'nmem' : N.
 # 
-exps   = hands-on-2
-snames = ex2
-paths  = /wrk/ollinaho/DONOTREMOVE/public/
-dates  = 2017103112,2017110112
-types  = p000
+exps   = hands-on-7
+snames = ex7
+paths  = /fmi/scratch/project_2002141/
+dates  = 2017110212
+types  = ctrl
 
 
 
@@ -55,16 +55,15 @@ types  = p000
 # If plotting the cyclone tracks, all the elements will be filled
 # with MSL according to the number of opened data sources.
 
-var1 = MSL
-var2 = MSL
+var0 = MSL
+var1 = U,11
+var2 = V,11
 
 
 #**************************************************************
 [operations]
 #**************************************************************
 
-oper1 = time,0,24,""
-oper2 = none,1,1,""
 
 
 #**************************************************************
@@ -109,16 +108,14 @@ time_mean=False
 #                "track" - plot a simple tropical cyclone track
 #
 
-fig_name=test_2C
+fig_name=damrey_inifields
 
 plot_type=mvar
 
-fig_markers=True
-fig_obs_track=True
+lonlat=[103.,126.,8.2,22.6]
 
-lonlat=[99.,129.,3.2,23.6]
-
-fcsteps=12/to/48/by/12
+#fcsteps=12/to/48/by/12
+fcsteps=0/to/0/by/1
 data_fcstep_len=3
 
 
@@ -126,15 +123,15 @@ data_fcstep_len=3
 # If left blank, default settings will used and ncol is defined to equal
 # number of variables to be plotted.
 #
-fig_size=(12,8)
-fig_nrow=1
-fig_ncol=1
+fig_size=(20,10)
+#fig_nrow=1
+#fig_ncol=1
 
 # Define number of contourf (cf_levs) and contour levels (c_levs), and
 # colour of contour lines.
-fig_cf_levs=20
-fig_c_levs=20
-fig_c_col=black
+fig_cf_levs=11
+fig_c_levs=15
+fig_c_col=blue
 
 
 #**************************************************************

@@ -74,7 +74,7 @@ def get_master(d_path,plot_vars,main_dict,operators,dataoper,savescore,plot_dict
         print("LOADING TIME AVERAGE")
         data_struct=[]
         for iexp in range(0,len(main_dict[0]['exps'])):
-            data_struct.append(get_score_data(tempo_name[iexp],""))
+            data_struct.append(get_score_data(tempo_name[iexp],"scores/"))
 
         # Flatten
         temp_list=[]
@@ -244,8 +244,8 @@ def get_data(data_path,plot_vars):
         data_reduced.name=item
 
         # Change pressure into hPa
-        #if item2=='var151' or item2=='Z':
-        #    data_reduced=data_reduced/100.
+        if item2=='var151' or item2=='Z':
+            data_reduced=data_reduced/100.
 
         # Change total accumulated precip to accumated over 3h time window
         if item2=='var228':

@@ -279,6 +279,14 @@ def plot_mvar(itime,data_struct,plot_dict,plot_vars,minmax):
     cmaps=col_maps_data(data_struct,plot_dict,plot_vars)
     ccont1=[plot_dict['fig_c_col'],plot_dict['fig_c_levs']]
     ccont2=[cmaps[1]              ,plot_dict['fig_cf_levs']]
+    ccont3=[cmaps[0]              ,plot_dict['fig_cf_levs']]
+
+
+    # Enlarge fontsizes
+    plt.rc('font', size=13)
+    plt.rc('axes', labelsize=15)
+    plt.rc('xtick',labelsize=15)
+    plt.rc('ytick',labelsize=15)
 
     # Create a figure
     fig,ax=create_figure(data_struct,plot_dict)
@@ -289,10 +297,13 @@ def plot_mvar(itime,data_struct,plot_dict,plot_vars,minmax):
     mim2=minmax[1][0] #min(minmax[1][0],minmax[3][0]) #,minmax[5][0])
     mam2=minmax[1][1] #max(minmax[1][1],minmax[3][1]) #,minmax[5][1])
 
-
     # Call plotting code layer
     call_plot(ax[0],data_struct[0],options=[itime],cmap=ccont1, minmax=[mim1,mam1],plottype='contour')
     call_plot(ax[0],data_struct[1],options=[itime],cmap=ccont2, minmax=[mim2,mam2])
+
+    # MOD FOR WIND BARBS
+    #call_plot(ax[0],data_struct[0],options=[itime],cmap=ccont3, minmax=[mim1,mam1])
+    #call_plot(ax[0],data_struct[1],data2=data_struct[2],options=[itime],cmap=ccont2,minmax=[mim2,mam2],plottype='winds')
         
     #call_plot(ax[1],data_struct[2],options=[itime],cmap=ccont1, minmax=[mim1,mam1],plottype='contour')
     #call_plot(ax[1],data_struct[3],options=[itime],cmap=ccont2, minmax=[mim2,mam2])
@@ -305,6 +316,8 @@ def plot_mvar(itime,data_struct,plot_dict,plot_vars,minmax):
     #call_plot_add(ax[1],plot_dict)
     #call_plot_add(ax[2],plot_dict)
 
+    # Remove border whitespace
+    fig.tight_layout()
 
 
 def plot_scores_crps_vs_fair(time,data_struct,plot_dict,plot_vars,minmax):
@@ -398,6 +411,12 @@ def plot_scores3(time,data_struct,plot_dict,plot_vars,minmax):
 
     ntime=len(time)
 
+    # Enlarge fontsizes
+    plt.rc('font', size=13)
+    plt.rc('axes', labelsize=15)
+    plt.rc('xtick',labelsize=15)
+    plt.rc('ytick',labelsize=15)
+
     # Create a figure
     fig,ax=plt.subplots(nrows=len(areas),ncols=ntime,figsize=plot_dict['fig_size'])
 
@@ -437,11 +456,14 @@ def plot_scores3(time,data_struct,plot_dict,plot_vars,minmax):
 
             if itime==0 and iarea==0:
                 #plot_legend(legend_cols,legend_names,legend_styles,bbox_loc=(-1.45,0.3,0.,0.))
-                plot_legend(legend_cols,legend_names,legend_styles,bbox_loc=(0.25,1.,0,0))
+                plot_legend(legend_cols,legend_names,legend_styles,bbox_loc=(0.27,1.,0,0))
+                #plot_legend(legend_cols,legend_names,legend_styles,bbox_loc=(0.18,1.,0,0))
 
             if 1==1:
                 ax[iarea*ntime+itime].set_xticks([0,24,48,72,96,120,144,168,192,216,240])
                 ax[iarea*ntime+itime].set_xticklabels([0,24,48,72,96,120,144,168,192,216,240])
+
+                #ax[iarea*ntime+itime].set_ylim(0,0.75)
 
             # LABELS
             ax[iarea*ntime+itime].set_title("")
@@ -449,8 +471,8 @@ def plot_scores3(time,data_struct,plot_dict,plot_vars,minmax):
                 ax[iarea*ntime+itime].set_xlabel("FORECAST LENGTH IN HOURS")
                 ax[iarea*ntime+itime].set_ylabel("RMSE/SPREAD")
                 ax[iarea*ntime+itime].set_ylabel("FAIR CPRS")
+                #ax[iarea*ntime+itime].set_ylabel("CPRS")
                                 
-
 
             # YLIMS
             if 1==0:
@@ -478,6 +500,8 @@ def plot_scores3(time,data_struct,plot_dict,plot_vars,minmax):
                 elif iarea==1:
                     ax[iarea*ntime+itime].set_ylim(1.55,2.4)
                 
+    # Remove border whitespace
+    fig.tight_layout()
 
 
 
@@ -497,6 +521,13 @@ def plot_scores4(time,data_struct,data_struct2,plot_dict,plot_vars,minmax):
 
     ntime=len(time)
     print(ntime,time,time[0])
+
+
+    # Enlarge fontsizes
+    plt.rc('font', size=13)
+    plt.rc('axes', labelsize=15)
+    plt.rc('xtick',labelsize=15)
+    plt.rc('ytick',labelsize=15)
 
     # Create a figure
     #fig,ax=plt.subplots(nrows=len(areas),ncols=ntime,figsize=plot_dict['fig_size'])
@@ -547,7 +578,8 @@ def plot_scores4(time,data_struct,data_struct2,plot_dict,plot_vars,minmax):
             #    idata+=1
 
             if itime==0 and iarea==0:
-                plot_legend(legend_cols,legend_names,legend_styles,bbox_loc=(0.3,1.,0,0))
+                #plot_legend(legend_cols,legend_names,legend_styles,bbox_loc=(0.3,1.,0,0))
+                plot_legend(legend_cols,legend_names,legend_styles,bbox_loc=(0.25,1.,0,0))
 
             ax[iarea*ntime+itime].set_title(areas[iarea])
 
@@ -555,12 +587,13 @@ def plot_scores4(time,data_struct,data_struct2,plot_dict,plot_vars,minmax):
                 ax[iarea*ntime+itime].set_xticks([0,24,48,72,96,120,144,168,192,216,240])
                 ax[iarea*ntime+itime].set_xticklabels([0,24,48,72,96,120,144,168,192,216,240])
 
+
             # LABELS
             ax[iarea*ntime+itime].set_title("")
             if 1==1:
                 ax[iarea*ntime+itime].set_xlabel("FORECAST LENGTH IN HOURS")
                 ax[iarea*ntime+itime].set_ylabel("RMSE/SPREAD")
-                ax[iarea*ntime+itime].set_ylabel("FAIR CRPS")
+                #ax[iarea*ntime+itime].set_ylabel("FAIR CRPS2")
 
             # YLIMS
             if 1==0:
@@ -572,6 +605,8 @@ def plot_scores4(time,data_struct,data_struct2,plot_dict,plot_vars,minmax):
                 elif iarea==1:
                     ax[iarea*ntime+itime].set_ylim(0.2,1.)
 
+    # Remove border whitespace
+    fig.tight_layout()
 
 
 
@@ -1001,7 +1036,7 @@ def call_score(ax,data,area,time,col,style):
     # Take the areal mean
     dd=data.mean(['lon','lat'])
 
-    xr.plot.line(dd,ax=ax,color=col,linestyle=style)
+    xr.plot.line(dd,ax=ax,color=col,linestyle=style,linewidth=2.5)
 
 
 
@@ -1114,7 +1149,7 @@ def call_plot(ax,data,\
     #dtime=d[0]['time']
 
     # Select additional data according to first data set
-    if data2.notnull(): d[1]=data2.sel(time=dtime)
+    if data2.notnull().any(): d[1]=data2.isel(time=options[0])
     if data3.notnull(): d[2]=data3.sel(time=dtime)
     if data4.notnull(): d[3]=data4.sel(time=dtime)
 
@@ -1126,6 +1161,10 @@ def call_plot(ax,data,\
     if plottype=="contour":
         contour_cartopy(ax, d[0],minmax[0],minmax[1],cmap=cmap)
   
+    if plottype=="winds":
+        barb_cartopy(ax,d[0],d[1],minmax[0],minmax[1],cmap=cmap)
+
+
 
 
 def calc_stats(an,data):
@@ -1164,9 +1203,15 @@ def contourf_cartopy(ax,data,fmin,fmax,cmap):
         fmax=data.max().values
         conts=np.arange(fmin,fmax,(fmax-fmin)/ncolors)
 
+    #conts=[998.,1000.,1002.,1004.,1006.,1008.,1010.,1012.,1014.,1016.,1018.]
+    #conts=[0.,0.4,0.6,0.8,1.,1.2,1.4,1.6,1.8,2.,2.2]
+    #conts=[0.,0.5,0.75,1.,1.25,1.5,1.75,2.,2.25,2.5,2.75]
+
     # Plot
     xr.plot.contourf(data, ax=ax, transform=ccrs.PlateCarree(), \
-                     cmap=cmap, levels=conts, extend='both')
+                     colors=cmap, levels=conts, extend='both')
+                     #colors=cmap, levels=conts, extend='min',cbar_kwargs=dict(label="MSLP"))
+                     #colors=cmap, levels=conts, extend='max',cbar_kwargs=dict(label="SDEV(MSLP)"))
 
             
 
@@ -1189,6 +1234,32 @@ def contour_cartopy(ax,data,fmin,fmax,cmap):
                      levels=conts,colors=ccol,alpha=0.65)
 
     ax.clabel(cs,fmt= '%1.0f',fontsize=14)
+
+            
+
+def barb_cartopy(ax,data,data2,fmin,fmax,cmap):
+    "Generate wind barbs with cartopy"
+
+    ccol=cmap[0]
+    clen=cmap[1]
+
+    # Determine contour intervals
+    if not fmin==[]:
+        conts=np.arange(fmin,fmax,(fmax-fmin)/clen)
+    else:
+        fmin=data.min().values
+        fmax=data.max().values
+        conts=np.arange(fmin,fmax,(fmax-fmin)/clen)
+
+    lats=data.lat.data
+    lons=data.lon.data
+
+    wind_slice = slice(3, -3, 3)
+    # Plot
+    ax.barbs(lons[wind_slice],lats[wind_slice],data[wind_slice,wind_slice],data2[wind_slice,wind_slice], \
+             transform=ccrs.PlateCarree(),color='b',length=7)
+
+    #ax.clabel(cs,fmt= '%1.0f',fontsize=14)
 
 
 

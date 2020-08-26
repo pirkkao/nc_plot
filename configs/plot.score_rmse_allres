@@ -27,11 +27,21 @@
 #            ensmemb   : construct a list of ensemble member 
 #	     	       	 names, size indicated with 'nmem' : N.
 # 
-exps   = hands-on-2
-snames = ex2
-paths  = /wrk/ollinaho/DONOTREMOVE/public/
-dates  = 2017103112,2017110112
-types  = p000
+exps   = prod_t159_eda+sv,prod_t159_eda+sv,prod_t399_eda+sv,prod_t399_eda+sv,prod_t639_eda+sv,prod_t639_eda+sv
+snames = t159_eda+sv,t159_eda+sv,t399_eda+sv,t399_eda+sv,t639_eda+sv,t639_eda+sv
+types  = rmse_ensmean,spread,rmse_ensmean,spread,rmse_ensmean,spread
+expand_names = 0
+
+#exps   = prod_t159_eda+sv,prod_t399_eda+sv,prod_t639_eda+sv
+#snames = t159_eda+sv,t399_eda+sv,t639_eda+sv
+#types  = ensmean,ensstd
+
+dates  = 2016120100/to/2017112600/by/8
+#dates  = 2016120100/to/2016121700/by/8
+
+paths  = /fmi/scratch/project_2002141/
+
+nmem   = 1
 
 
 
@@ -39,6 +49,11 @@ types  = p000
 [AN] 
 #**************************************************************
 
+#exps   = prod_t639_eda+sv
+#snames = t639_eda+sv
+#paths  = /wrk/ollinaho/DONOTREMOVE/oeps_pp/
+#dates  = 2016120100/to/2016121700/by/8
+#types  = ctrl
 
 
 #**************************************************************
@@ -55,31 +70,65 @@ types  = p000
 # If plotting the cyclone tracks, all the elements will be filled
 # with MSL according to the number of opened data sources.
 
-var1 = MSL
-var2 = MSL
+var0 = T,4
+var1 = Z,3
+var2 = U,1
+var3 = U,4
 
 
 #**************************************************************
 [operations]
 #**************************************************************
 
-oper1 = time,0,24,""
-oper2 = none,1,1,""
 
 
 #**************************************************************
 [scores]
 #**************************************************************
 
+operator0 = rmse,-1,0
+operator1 = spread,1,1
+operator2 = rmse,-1,0
+operator3 = spread,1,1
+operator4 = rmse,-1,0
+operator5 = spread,1,1
 
 
 #**************************************************************
 [save_data]
 #**************************************************************
 
-time_mean=False
+load_scores=True
+
+fnames=default
+fpath=/fmi/scratch/project_2002141/SCORES/
 
 
+#**************************************************************
+[score_plot]
+#**************************************************************
+
+time_mean=True
+time_mean_load=False
+
+#areas=nh,tr,sh
+areas=nh
+#time=range(0,9);range(9,21);range(21,41)
+
+crps=False
+fair_count=20
+
+#cols=forestgreen,peru,m
+cols=forestgreen,darkcyan,m
+#cols=skyblue,blue,darkviolet,k
+styles=-,-,-,-,--,--,--
+
+#legend_cols=forestgreen,forestgreen,peru,peru,m,m
+legend_cols=forestgreen,forestgreen,darkcyan,darkcyan,m,m
+legend_names=TL159 RMSE,TL159 SPREAD,TL399 RMSE,TL399 SPREAD,TL639 RMSE,TL639 SPREAD
+#legend_cols=skyblue,skyblue,blue,blue,darkviolet,darkviolet,k
+#legend_names=SV  RMSE,SV  spread,EDA RMSE,EDA spread,EDA+SV RMSE,EDA+SV spread,ctrl
+legend_styles=-,--,-,--,-,--,-
 
 #**************************************************************
 [plot]
@@ -109,37 +158,17 @@ time_mean=False
 #                "track" - plot a simple tropical cyclone track
 #
 
-fig_name=test_2C
+fig_name=scores_rmse_allres_nh
 
-plot_type=mvar
+fig_size=(10,10)
 
-fig_markers=True
-fig_obs_track=True
-
-lonlat=[99.,129.,3.2,23.6]
-
-fcsteps=12/to/48/by/12
-data_fcstep_len=3
+#plot_type=score_diff_avg
+plot_type=score_rmse
+#plot_type=fair_exps
 
 
-# Define figure physical dimensions (size) and layout (ncol x nrow).
-# If left blank, default settings will used and ncol is defined to equal
-# number of variables to be plotted.
-#
-fig_size=(12,8)
-fig_nrow=1
-fig_ncol=1
-
-# Define number of contourf (cf_levs) and contour levels (c_levs), and
-# colour of contour lines.
-fig_cf_levs=20
-fig_c_levs=20
-fig_c_col=black
 
 
-#**************************************************************
-[score_plot]
-#**************************************************************
      
 
 

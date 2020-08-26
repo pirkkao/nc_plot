@@ -30,7 +30,7 @@
 exps   = hands-on-2
 snames = ex2
 paths  = /wrk/ollinaho/DONOTREMOVE/public/
-dates  = 2017103112
+dates  = 2017110112
 types  = p000
 
 
@@ -112,7 +112,7 @@ plot_type=track
 
 lonlat=[99.,129.,3.2,23.6]
 
-fcsteps=0/to/84/by/6
+fcsteps=0/to/72/by/6
 data_fcstep_len=3
 
 
@@ -127,10 +127,11 @@ fig_legend=date
 
 # TC track options
 fig_ctrl_col=False
+fig_markers=True
 
 # Change observations used
-fig_obs_track=False
-fig_obs_match_time=False
+fig_obs_track=True
+fig_obs_match_time=True
 
 
 

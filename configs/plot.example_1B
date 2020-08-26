@@ -55,8 +55,8 @@ types  = p000
 # If plotting the cyclone tracks, all the elements will be filled
 # with MSL according to the number of opened data sources.
 
-var1 = MSL
-var2 = T,4
+var1 = SST
+var2 = MSL
 
 
 #**************************************************************
@@ -112,6 +112,7 @@ fig_name=test_1B
 plot_type=2dmap
 
 lonlat=[99.,129.,3.2,23.6]
+minmax=rel
 
 fcsteps=12/to/48/by/12
 data_fcstep_len=3

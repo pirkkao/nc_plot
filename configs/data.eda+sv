@@ -23,10 +23,10 @@
 #	     	       	 names, size indicated with 'nmem' : N.
 # 
 exps   = prod_t159_eda+sv_sisu
-snames = eda+sv
+snames = t159_eda+sv
 paths  = /wrk/ollinaho/DONOTREMOVE/oeps_pp/
 dates  = 2016120100
-types  = p000,ensmemb
+types  = ensmemb
 nmem   = 51
 
 
@@ -53,11 +53,14 @@ var1 = T,4
 
 
 [scores]
-operator1 = crps,-1,0/to/16/by/2
-operator2 = crps,-1,0/to/20/by/2
-operator3 = crps,-1,0/to/24/by/2
-operator4 = crps,-1,0/to/40/by/2
-operator5 = crps,-1,0/to/51/by/1
+#operator1 = crps,-1,0/to/16/by/2
+#operator2 = crps,-1,0/to/20/by/2
+#operator3 = crps,-1,0/to/24/by/2
+#operator4 = crps,-1,0/to/40/by/2
+operator5 = crps,-1,0/to/50/by/1
+
+
+[operations]
 
 
 [save_data]
@@ -74,20 +77,14 @@ load_scores=False
 fnames=default
 fpath=/wrk/ollinaho/DONOTREMOVE/public/SCORES/
 
+
+[plot]
+
+
 [score_plot]
-time_mean=True
-
-areas=nh,tr,sh
-time=range(0,9);range(9,21);range(21,41)
-
-cols=r,violet,b,g,k
-styles=-,--,-.,:,-
-
-legend_cols=r,violet,b,g,k
-legend_names=N8,N10,N12,N20,N51
-
-crps=True
+time_mean=False
 plot_type=none
+
 
 [2dplot]
 

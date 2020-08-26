@@ -450,6 +450,8 @@ def create_vars(pvars,main_dict,plot_dict):
                         typ_ens.append("ensmean")
                     elif typ=="ctrl" or typ=="p000":
                         typ_ens.append("ctrl")
+                        # MOD FOR WIND BARBS
+                        #typ_ens.append("ensmean")
                     else:
                         typ_ens.append("member")
 
@@ -571,6 +573,8 @@ def create_paths(main_dict,plot_vars):
                     # Iterate over variables if a single input source open
                     # UNLESS AN or CTRL
                     if len(fnames)==1 and len(dates)==1 and fnam!="an_pl" and fnam!="ctrl":
+                    # MOD FOR WIND BARBS!
+                    #if len(fnames)==1 and len(dates)==1 and fnam!="an_pl":
                         for pvar in plot_vars:
                             d_path.append(basepath+exp+"/"+date+"/"+fnam+".nc")
                             
